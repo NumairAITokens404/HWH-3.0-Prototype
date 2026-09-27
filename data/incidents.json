@@ -1,0 +1,257 @@
+[
+  {
+    "incident_id": "INC-101",
+    "service": "customer-service",
+    "severity": "MEDIUM",
+    "symptoms": [
+      "transaction failed",
+      "invalid customer PIN state"
+    ],
+    "error_code": "PIN_STATE_INVALID",
+    "error_message": "PIN_STATE_INVALID: transaction failed",
+    "environment": "production",
+    "recent_change": "Synthetic deployment preceding incident",
+    "customer_id": "SYN-CUST-101",
+    "transaction_id": "SYN-TXN-101"
+  },
+  {
+    "incident_id": "INC-102",
+    "service": "customer-service",
+    "severity": "MEDIUM",
+    "symptoms": [
+      "transaction failed",
+      "invalid customer PIN state",
+      "intermittent failures during peak load"
+    ],
+    "error_code": "PIN_STATE_INVALID",
+    "error_message": "PIN_STATE_INVALID: transaction failed",
+    "environment": "production",
+    "recent_change": null,
+    "customer_id": "SYN-CUST-102",
+    "transaction_id": "SYN-TXN-102"
+  },
+  {
+    "incident_id": "INC-103",
+    "service": "customer-service",
+    "severity": "MEDIUM",
+    "symptoms": [
+      "transaction failed",
+      "invalid customer PIN state"
+    ],
+    "error_code": "PIN_STATE_INVALID",
+    "error_message": "PIN_STATE_INVALID: transaction failed",
+    "environment": "staging",
+    "recent_change": null,
+    "customer_id": "SYN-CUST-103",
+    "transaction_id": "SYN-TXN-103"
+  },
+  {
+    "incident_id": "INC-104",
+    "service": "payment-service",
+    "severity": "HIGH",
+    "symptoms": [
+      "payment authorization failed",
+      "stale provider routing data"
+    ],
+    "error_code": "PAYMENT_ROUTE_STALE",
+    "error_message": "PAYMENT_ROUTE_STALE: payment authorization failed",
+    "environment": "production",
+    "recent_change": "Synthetic deployment preceding incident",
+    "customer_id": "SYN-CUST-104",
+    "transaction_id": "SYN-TXN-104"
+  },
+  {
+    "incident_id": "INC-105",
+    "service": "payment-service",
+    "severity": "HIGH",
+    "symptoms": [
+      "payment authorization failed",
+      "stale provider routing data",
+      "intermittent failures during peak load"
+    ],
+    "error_code": "PAYMENT_ROUTE_STALE",
+    "error_message": "PAYMENT_ROUTE_STALE: payment authorization failed",
+    "environment": "production",
+    "recent_change": null,
+    "customer_id": "SYN-CUST-105",
+    "transaction_id": "SYN-TXN-105"
+  },
+  {
+    "incident_id": "INC-106",
+    "service": "payment-service",
+    "severity": "HIGH",
+    "symptoms": [
+      "payment authorization failed",
+      "stale provider routing data"
+    ],
+    "error_code": "PAYMENT_ROUTE_STALE",
+    "error_message": "PAYMENT_ROUTE_STALE: payment authorization failed",
+    "environment": "staging",
+    "recent_change": null,
+    "customer_id": "SYN-CUST-106",
+    "transaction_id": "SYN-TXN-106"
+  },
+  {
+    "incident_id": "INC-107",
+    "service": "database-service",
+    "severity": "HIGH",
+    "symptoms": [
+      "connection pool exhausted",
+      "queries waiting for a connection"
+    ],
+    "error_code": "DB_POOL_EXHAUSTED",
+    "error_message": "DB_POOL_EXHAUSTED: connection pool exhausted",
+    "environment": "production",
+    "recent_change": "Synthetic deployment preceding incident"
+  },
+  {
+    "incident_id": "INC-108",
+    "service": "database-service",
+    "severity": "HIGH",
+    "symptoms": [
+      "connection pool exhausted",
+      "queries waiting for a connection",
+      "intermittent failures during peak load"
+    ],
+    "error_code": "DB_POOL_EXHAUSTED",
+    "error_message": "DB_POOL_EXHAUSTED: connection pool exhausted",
+    "environment": "production",
+    "recent_change": null
+  },
+  {
+    "incident_id": "INC-109",
+    "service": "database-service",
+    "severity": "HIGH",
+    "symptoms": [
+      "connection pool exhausted",
+      "queries waiting for a connection"
+    ],
+    "error_code": "DB_POOL_EXHAUSTED",
+    "error_message": "DB_POOL_EXHAUSTED: connection pool exhausted",
+    "environment": "staging",
+    "recent_change": null
+  },
+  {
+    "incident_id": "INC-110",
+    "service": "queue-service",
+    "severity": "MEDIUM",
+    "symptoms": [
+      "consumer repeatedly crashes",
+      "queue backlog growing"
+    ],
+    "error_code": "QUEUE_POISON_MESSAGE",
+    "error_message": "QUEUE_POISON_MESSAGE: consumer repeatedly crashes",
+    "environment": "production",
+    "recent_change": "Synthetic deployment preceding incident",
+    "job_id": "SYN-JOB-110"
+  },
+  {
+    "incident_id": "INC-111",
+    "service": "queue-service",
+    "severity": "MEDIUM",
+    "symptoms": [
+      "consumer repeatedly crashes",
+      "queue backlog growing",
+      "intermittent failures during peak load"
+    ],
+    "error_code": "QUEUE_POISON_MESSAGE",
+    "error_message": "QUEUE_POISON_MESSAGE: consumer repeatedly crashes",
+    "environment": "production",
+    "recent_change": null,
+    "job_id": "SYN-JOB-111"
+  },
+  {
+    "incident_id": "INC-112",
+    "service": "queue-service",
+    "severity": "MEDIUM",
+    "symptoms": [
+      "consumer repeatedly crashes",
+      "queue backlog growing"
+    ],
+    "error_code": "QUEUE_POISON_MESSAGE",
+    "error_message": "QUEUE_POISON_MESSAGE: consumer repeatedly crashes",
+    "environment": "staging",
+    "recent_change": null,
+    "job_id": "SYN-JOB-112"
+  },
+  {
+    "incident_id": "INC-113",
+    "service": "catalog-service",
+    "severity": "MEDIUM",
+    "symptoms": [
+      "catalog response is stale",
+      "cache version mismatch"
+    ],
+    "error_code": "CACHE_VERSION_MISMATCH",
+    "error_message": "CACHE_VERSION_MISMATCH: catalog response is stale",
+    "environment": "production",
+    "recent_change": "Synthetic deployment preceding incident"
+  },
+  {
+    "incident_id": "INC-114",
+    "service": "catalog-service",
+    "severity": "MEDIUM",
+    "symptoms": [
+      "catalog response is stale",
+      "cache version mismatch",
+      "intermittent failures during peak load"
+    ],
+    "error_code": "CACHE_VERSION_MISMATCH",
+    "error_message": "CACHE_VERSION_MISMATCH: catalog response is stale",
+    "environment": "production",
+    "recent_change": null
+  },
+  {
+    "incident_id": "INC-115",
+    "service": "catalog-service",
+    "severity": "MEDIUM",
+    "symptoms": [
+      "catalog response is stale",
+      "cache version mismatch"
+    ],
+    "error_code": "CACHE_VERSION_MISMATCH",
+    "error_message": "CACHE_VERSION_MISMATCH: catalog response is stale",
+    "environment": "staging",
+    "recent_change": null
+  },
+  {
+    "incident_id": "INC-116",
+    "service": "fulfillment-service",
+    "severity": "HIGH",
+    "symptoms": [
+      "downstream request timed out",
+      "dependency health check fails"
+    ],
+    "error_code": "DOWNSTREAM_TIMEOUT",
+    "error_message": "DOWNSTREAM_TIMEOUT: downstream request timed out",
+    "environment": "production",
+    "recent_change": "Synthetic deployment preceding incident"
+  },
+  {
+    "incident_id": "INC-117",
+    "service": "fulfillment-service",
+    "severity": "HIGH",
+    "symptoms": [
+      "downstream request timed out",
+      "dependency health check fails",
+      "intermittent failures during peak load"
+    ],
+    "error_code": "DOWNSTREAM_TIMEOUT",
+    "error_message": "DOWNSTREAM_TIMEOUT: downstream request timed out",
+    "environment": "production",
+    "recent_change": null
+  },
+  {
+    "incident_id": "INC-118",
+    "service": "fulfillment-service",
+    "severity": "HIGH",
+    "symptoms": [
+      "downstream request timed out",
+      "dependency health check fails"
+    ],
+    "error_code": "DOWNSTREAM_TIMEOUT",
+    "error_message": "DOWNSTREAM_TIMEOUT: downstream request timed out",
+    "environment": "staging",
+    "recent_change": null
+  }
+]

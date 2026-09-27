@@ -1,0 +1,959 @@
+[
+  {
+    "incident": {
+      "incident_id": "INC-101",
+      "service": "customer-service",
+      "severity": "MEDIUM",
+      "symptoms": [
+        "transaction failed",
+        "invalid customer PIN state"
+      ],
+      "error_code": "PIN_STATE_INVALID",
+      "error_message": "PIN_STATE_INVALID: transaction failed",
+      "environment": "production",
+      "recent_change": "Synthetic deployment preceding incident",
+      "customer_id": "SYN-CUST-101",
+      "transaction_id": "SYN-TXN-101"
+    },
+    "root_cause": "stale PIN master data",
+    "outcomes": [
+      {
+        "outcome_id": "OUT-101-1",
+        "incident_id": "INC-101",
+        "action": "reprocess_transaction",
+        "result": "FAILED",
+        "risk_level": "LOW",
+        "reprocessing_result": "FAILED",
+        "verified": true,
+        "lesson_learned": "Retry alone did not address the underlying cause.",
+        "resolution_time_minutes": null
+      },
+      {
+        "outcome_id": "OUT-101-2",
+        "incident_id": "INC-101",
+        "action": "reset_customer_pin",
+        "result": "SUCCESS",
+        "risk_level": "LOW",
+        "reprocessing_result": null,
+        "verified": true,
+        "lesson_learned": "Reset the simulated PIN state before reprocessing the transaction.",
+        "resolution_time_minutes": null
+      },
+      {
+        "outcome_id": "OUT-101-3",
+        "incident_id": "INC-101",
+        "action": "reprocess_transaction",
+        "result": "SUCCESS",
+        "risk_level": "LOW",
+        "reprocessing_result": "SUCCESS",
+        "verified": true,
+        "lesson_learned": "Reset the simulated PIN state before reprocessing the transaction.",
+        "resolution_time_minutes": 6
+      }
+    ],
+    "final_resolution": "Reset the simulated PIN state before reprocessing the transaction."
+  },
+  {
+    "incident": {
+      "incident_id": "INC-102",
+      "service": "customer-service",
+      "severity": "MEDIUM",
+      "symptoms": [
+        "transaction failed",
+        "invalid customer PIN state",
+        "intermittent failures during peak load"
+      ],
+      "error_code": "PIN_STATE_INVALID",
+      "error_message": "PIN_STATE_INVALID: transaction failed",
+      "environment": "production",
+      "recent_change": null,
+      "customer_id": "SYN-CUST-102",
+      "transaction_id": "SYN-TXN-102"
+    },
+    "root_cause": "stale PIN master data",
+    "outcomes": [
+      {
+        "outcome_id": "OUT-102-1",
+        "incident_id": "INC-102",
+        "action": "reprocess_transaction",
+        "result": "FAILED",
+        "risk_level": "LOW",
+        "reprocessing_result": "FAILED",
+        "verified": true,
+        "lesson_learned": "Retry alone did not address the underlying cause.",
+        "resolution_time_minutes": null
+      },
+      {
+        "outcome_id": "OUT-102-2",
+        "incident_id": "INC-102",
+        "action": "reset_customer_pin",
+        "result": "SUCCESS",
+        "risk_level": "LOW",
+        "reprocessing_result": null,
+        "verified": true,
+        "lesson_learned": "Reset the simulated PIN state before reprocessing the transaction.",
+        "resolution_time_minutes": null
+      },
+      {
+        "outcome_id": "OUT-102-3",
+        "incident_id": "INC-102",
+        "action": "reprocess_transaction",
+        "result": "SUCCESS",
+        "risk_level": "LOW",
+        "reprocessing_result": "SUCCESS",
+        "verified": true,
+        "lesson_learned": "Reset the simulated PIN state before reprocessing the transaction.",
+        "resolution_time_minutes": 9
+      }
+    ],
+    "final_resolution": "Reset the simulated PIN state before reprocessing the transaction."
+  },
+  {
+    "incident": {
+      "incident_id": "INC-103",
+      "service": "customer-service",
+      "severity": "MEDIUM",
+      "symptoms": [
+        "transaction failed",
+        "invalid customer PIN state"
+      ],
+      "error_code": "PIN_STATE_INVALID",
+      "error_message": "PIN_STATE_INVALID: transaction failed",
+      "environment": "staging",
+      "recent_change": null,
+      "customer_id": "SYN-CUST-103",
+      "transaction_id": "SYN-TXN-103"
+    },
+    "root_cause": "stale PIN master data",
+    "outcomes": [
+      {
+        "outcome_id": "OUT-103-1",
+        "incident_id": "INC-103",
+        "action": "reprocess_transaction",
+        "result": "FAILED",
+        "risk_level": "LOW",
+        "reprocessing_result": "FAILED",
+        "verified": true,
+        "lesson_learned": "Retry alone did not address the underlying cause.",
+        "resolution_time_minutes": null
+      },
+      {
+        "outcome_id": "OUT-103-2",
+        "incident_id": "INC-103",
+        "action": "reset_customer_pin",
+        "result": "SUCCESS",
+        "risk_level": "LOW",
+        "reprocessing_result": null,
+        "verified": true,
+        "lesson_learned": "Reset the simulated PIN state before reprocessing the transaction.",
+        "resolution_time_minutes": null
+      },
+      {
+        "outcome_id": "OUT-103-3",
+        "incident_id": "INC-103",
+        "action": "reprocess_transaction",
+        "result": "SUCCESS",
+        "risk_level": "LOW",
+        "reprocessing_result": "SUCCESS",
+        "verified": true,
+        "lesson_learned": "Reset the simulated PIN state before reprocessing the transaction.",
+        "resolution_time_minutes": 12
+      }
+    ],
+    "final_resolution": "Reset the simulated PIN state before reprocessing the transaction."
+  },
+  {
+    "incident": {
+      "incident_id": "INC-104",
+      "service": "payment-service",
+      "severity": "HIGH",
+      "symptoms": [
+        "payment authorization failed",
+        "stale provider routing data"
+      ],
+      "error_code": "PAYMENT_ROUTE_STALE",
+      "error_message": "PAYMENT_ROUTE_STALE: payment authorization failed",
+      "environment": "production",
+      "recent_change": "Synthetic deployment preceding incident",
+      "customer_id": "SYN-CUST-104",
+      "transaction_id": "SYN-TXN-104"
+    },
+    "root_cause": "outdated payment provider routing cache",
+    "outcomes": [
+      {
+        "outcome_id": "OUT-104-1",
+        "incident_id": "INC-104",
+        "action": "retry_request",
+        "result": "FAILED",
+        "risk_level": "LOW",
+        "reprocessing_result": "FAILED",
+        "verified": true,
+        "lesson_learned": "Retry alone did not address the underlying cause.",
+        "resolution_time_minutes": null
+      },
+      {
+        "outcome_id": "OUT-104-2",
+        "incident_id": "INC-104",
+        "action": "refresh_payment_routing",
+        "result": "SUCCESS",
+        "risk_level": "MEDIUM",
+        "reprocessing_result": null,
+        "verified": true,
+        "lesson_learned": "Refresh routing data with approval before retrying the payment request.",
+        "resolution_time_minutes": null
+      },
+      {
+        "outcome_id": "OUT-104-3",
+        "incident_id": "INC-104",
+        "action": "retry_request",
+        "result": "SUCCESS",
+        "risk_level": "LOW",
+        "reprocessing_result": "SUCCESS",
+        "verified": true,
+        "lesson_learned": "Refresh routing data with approval before retrying the payment request.",
+        "resolution_time_minutes": 6
+      }
+    ],
+    "final_resolution": "Refresh routing data with approval before retrying the payment request."
+  },
+  {
+    "incident": {
+      "incident_id": "INC-105",
+      "service": "payment-service",
+      "severity": "HIGH",
+      "symptoms": [
+        "payment authorization failed",
+        "stale provider routing data",
+        "intermittent failures during peak load"
+      ],
+      "error_code": "PAYMENT_ROUTE_STALE",
+      "error_message": "PAYMENT_ROUTE_STALE: payment authorization failed",
+      "environment": "production",
+      "recent_change": null,
+      "customer_id": "SYN-CUST-105",
+      "transaction_id": "SYN-TXN-105"
+    },
+    "root_cause": "outdated payment provider routing cache",
+    "outcomes": [
+      {
+        "outcome_id": "OUT-105-1",
+        "incident_id": "INC-105",
+        "action": "retry_request",
+        "result": "FAILED",
+        "risk_level": "LOW",
+        "reprocessing_result": "FAILED",
+        "verified": true,
+        "lesson_learned": "Retry alone did not address the underlying cause.",
+        "resolution_time_minutes": null
+      },
+      {
+        "outcome_id": "OUT-105-2",
+        "incident_id": "INC-105",
+        "action": "refresh_payment_routing",
+        "result": "SUCCESS",
+        "risk_level": "MEDIUM",
+        "reprocessing_result": null,
+        "verified": true,
+        "lesson_learned": "Refresh routing data with approval before retrying the payment request.",
+        "resolution_time_minutes": null
+      },
+      {
+        "outcome_id": "OUT-105-3",
+        "incident_id": "INC-105",
+        "action": "retry_request",
+        "result": "SUCCESS",
+        "risk_level": "LOW",
+        "reprocessing_result": "SUCCESS",
+        "verified": true,
+        "lesson_learned": "Refresh routing data with approval before retrying the payment request.",
+        "resolution_time_minutes": 9
+      }
+    ],
+    "final_resolution": "Refresh routing data with approval before retrying the payment request."
+  },
+  {
+    "incident": {
+      "incident_id": "INC-106",
+      "service": "payment-service",
+      "severity": "HIGH",
+      "symptoms": [
+        "payment authorization failed",
+        "stale provider routing data"
+      ],
+      "error_code": "PAYMENT_ROUTE_STALE",
+      "error_message": "PAYMENT_ROUTE_STALE: payment authorization failed",
+      "environment": "staging",
+      "recent_change": null,
+      "customer_id": "SYN-CUST-106",
+      "transaction_id": "SYN-TXN-106"
+    },
+    "root_cause": "outdated payment provider routing cache",
+    "outcomes": [
+      {
+        "outcome_id": "OUT-106-1",
+        "incident_id": "INC-106",
+        "action": "retry_request",
+        "result": "FAILED",
+        "risk_level": "LOW",
+        "reprocessing_result": "FAILED",
+        "verified": true,
+        "lesson_learned": "Retry alone did not address the underlying cause.",
+        "resolution_time_minutes": null
+      },
+      {
+        "outcome_id": "OUT-106-2",
+        "incident_id": "INC-106",
+        "action": "refresh_payment_routing",
+        "result": "SUCCESS",
+        "risk_level": "MEDIUM",
+        "reprocessing_result": null,
+        "verified": true,
+        "lesson_learned": "Refresh routing data with approval before retrying the payment request.",
+        "resolution_time_minutes": null
+      },
+      {
+        "outcome_id": "OUT-106-3",
+        "incident_id": "INC-106",
+        "action": "retry_request",
+        "result": "SUCCESS",
+        "risk_level": "LOW",
+        "reprocessing_result": "SUCCESS",
+        "verified": true,
+        "lesson_learned": "Refresh routing data with approval before retrying the payment request.",
+        "resolution_time_minutes": 12
+      }
+    ],
+    "final_resolution": "Refresh routing data with approval before retrying the payment request."
+  },
+  {
+    "incident": {
+      "incident_id": "INC-107",
+      "service": "database-service",
+      "severity": "HIGH",
+      "symptoms": [
+        "connection pool exhausted",
+        "queries waiting for a connection"
+      ],
+      "error_code": "DB_POOL_EXHAUSTED",
+      "error_message": "DB_POOL_EXHAUSTED: connection pool exhausted",
+      "environment": "production",
+      "recent_change": "Synthetic deployment preceding incident"
+    },
+    "root_cause": "leaked database connections after deployment",
+    "outcomes": [
+      {
+        "outcome_id": "OUT-107-1",
+        "incident_id": "INC-107",
+        "action": "retry_request",
+        "result": "FAILED",
+        "risk_level": "LOW",
+        "reprocessing_result": "FAILED",
+        "verified": true,
+        "lesson_learned": "Retry alone did not address the underlying cause.",
+        "resolution_time_minutes": null
+      },
+      {
+        "outcome_id": "OUT-107-2",
+        "incident_id": "INC-107",
+        "action": "rollback_connection_pool_change",
+        "result": "SUCCESS",
+        "risk_level": "HIGH",
+        "reprocessing_result": null,
+        "verified": true,
+        "lesson_learned": "Obtain approval for rollback and verify connection recovery before retrying.",
+        "resolution_time_minutes": null
+      },
+      {
+        "outcome_id": "OUT-107-3",
+        "incident_id": "INC-107",
+        "action": "retry_request",
+        "result": "SUCCESS",
+        "risk_level": "LOW",
+        "reprocessing_result": "SUCCESS",
+        "verified": true,
+        "lesson_learned": "Obtain approval for rollback and verify connection recovery before retrying.",
+        "resolution_time_minutes": 6
+      }
+    ],
+    "final_resolution": "Obtain approval for rollback and verify connection recovery before retrying."
+  },
+  {
+    "incident": {
+      "incident_id": "INC-108",
+      "service": "database-service",
+      "severity": "HIGH",
+      "symptoms": [
+        "connection pool exhausted",
+        "queries waiting for a connection",
+        "intermittent failures during peak load"
+      ],
+      "error_code": "DB_POOL_EXHAUSTED",
+      "error_message": "DB_POOL_EXHAUSTED: connection pool exhausted",
+      "environment": "production",
+      "recent_change": null
+    },
+    "root_cause": "leaked database connections after deployment",
+    "outcomes": [
+      {
+        "outcome_id": "OUT-108-1",
+        "incident_id": "INC-108",
+        "action": "retry_request",
+        "result": "FAILED",
+        "risk_level": "LOW",
+        "reprocessing_result": "FAILED",
+        "verified": true,
+        "lesson_learned": "Retry alone did not address the underlying cause.",
+        "resolution_time_minutes": null
+      },
+      {
+        "outcome_id": "OUT-108-2",
+        "incident_id": "INC-108",
+        "action": "rollback_connection_pool_change",
+        "result": "SUCCESS",
+        "risk_level": "HIGH",
+        "reprocessing_result": null,
+        "verified": true,
+        "lesson_learned": "Obtain approval for rollback and verify connection recovery before retrying.",
+        "resolution_time_minutes": null
+      },
+      {
+        "outcome_id": "OUT-108-3",
+        "incident_id": "INC-108",
+        "action": "retry_request",
+        "result": "SUCCESS",
+        "risk_level": "LOW",
+        "reprocessing_result": "SUCCESS",
+        "verified": true,
+        "lesson_learned": "Obtain approval for rollback and verify connection recovery before retrying.",
+        "resolution_time_minutes": 9
+      }
+    ],
+    "final_resolution": "Obtain approval for rollback and verify connection recovery before retrying."
+  },
+  {
+    "incident": {
+      "incident_id": "INC-109",
+      "service": "database-service",
+      "severity": "HIGH",
+      "symptoms": [
+        "connection pool exhausted",
+        "queries waiting for a connection"
+      ],
+      "error_code": "DB_POOL_EXHAUSTED",
+      "error_message": "DB_POOL_EXHAUSTED: connection pool exhausted",
+      "environment": "staging",
+      "recent_change": null
+    },
+    "root_cause": "leaked database connections after deployment",
+    "outcomes": [
+      {
+        "outcome_id": "OUT-109-1",
+        "incident_id": "INC-109",
+        "action": "retry_request",
+        "result": "FAILED",
+        "risk_level": "LOW",
+        "reprocessing_result": "FAILED",
+        "verified": true,
+        "lesson_learned": "Retry alone did not address the underlying cause.",
+        "resolution_time_minutes": null
+      },
+      {
+        "outcome_id": "OUT-109-2",
+        "incident_id": "INC-109",
+        "action": "rollback_connection_pool_change",
+        "result": "SUCCESS",
+        "risk_level": "HIGH",
+        "reprocessing_result": null,
+        "verified": true,
+        "lesson_learned": "Obtain approval for rollback and verify connection recovery before retrying.",
+        "resolution_time_minutes": null
+      },
+      {
+        "outcome_id": "OUT-109-3",
+        "incident_id": "INC-109",
+        "action": "retry_request",
+        "result": "SUCCESS",
+        "risk_level": "LOW",
+        "reprocessing_result": "SUCCESS",
+        "verified": true,
+        "lesson_learned": "Obtain approval for rollback and verify connection recovery before retrying.",
+        "resolution_time_minutes": 12
+      }
+    ],
+    "final_resolution": "Obtain approval for rollback and verify connection recovery before retrying."
+  },
+  {
+    "incident": {
+      "incident_id": "INC-110",
+      "service": "queue-service",
+      "severity": "MEDIUM",
+      "symptoms": [
+        "consumer repeatedly crashes",
+        "queue backlog growing"
+      ],
+      "error_code": "QUEUE_POISON_MESSAGE",
+      "error_message": "QUEUE_POISON_MESSAGE: consumer repeatedly crashes",
+      "environment": "production",
+      "recent_change": "Synthetic deployment preceding incident",
+      "job_id": "SYN-JOB-110"
+    },
+    "root_cause": "malformed message blocks queue consumer",
+    "outcomes": [
+      {
+        "outcome_id": "OUT-110-1",
+        "incident_id": "INC-110",
+        "action": "retry_job",
+        "result": "FAILED",
+        "risk_level": "LOW",
+        "reprocessing_result": "FAILED",
+        "verified": true,
+        "lesson_learned": "Retry alone did not address the underlying cause.",
+        "resolution_time_minutes": null
+      },
+      {
+        "outcome_id": "OUT-110-2",
+        "incident_id": "INC-110",
+        "action": "quarantine_poison_message",
+        "result": "SUCCESS",
+        "risk_level": "MEDIUM",
+        "reprocessing_result": null,
+        "verified": true,
+        "lesson_learned": "Quarantine the identified malformed message with approval before retrying the job.",
+        "resolution_time_minutes": null
+      },
+      {
+        "outcome_id": "OUT-110-3",
+        "incident_id": "INC-110",
+        "action": "retry_job",
+        "result": "SUCCESS",
+        "risk_level": "LOW",
+        "reprocessing_result": "SUCCESS",
+        "verified": true,
+        "lesson_learned": "Quarantine the identified malformed message with approval before retrying the job.",
+        "resolution_time_minutes": 6
+      }
+    ],
+    "final_resolution": "Quarantine the identified malformed message with approval before retrying the job."
+  },
+  {
+    "incident": {
+      "incident_id": "INC-111",
+      "service": "queue-service",
+      "severity": "MEDIUM",
+      "symptoms": [
+        "consumer repeatedly crashes",
+        "queue backlog growing",
+        "intermittent failures during peak load"
+      ],
+      "error_code": "QUEUE_POISON_MESSAGE",
+      "error_message": "QUEUE_POISON_MESSAGE: consumer repeatedly crashes",
+      "environment": "production",
+      "recent_change": null,
+      "job_id": "SYN-JOB-111"
+    },
+    "root_cause": "malformed message blocks queue consumer",
+    "outcomes": [
+      {
+        "outcome_id": "OUT-111-1",
+        "incident_id": "INC-111",
+        "action": "retry_job",
+        "result": "FAILED",
+        "risk_level": "LOW",
+        "reprocessing_result": "FAILED",
+        "verified": true,
+        "lesson_learned": "Retry alone did not address the underlying cause.",
+        "resolution_time_minutes": null
+      },
+      {
+        "outcome_id": "OUT-111-2",
+        "incident_id": "INC-111",
+        "action": "quarantine_poison_message",
+        "result": "SUCCESS",
+        "risk_level": "MEDIUM",
+        "reprocessing_result": null,
+        "verified": true,
+        "lesson_learned": "Quarantine the identified malformed message with approval before retrying the job.",
+        "resolution_time_minutes": null
+      },
+      {
+        "outcome_id": "OUT-111-3",
+        "incident_id": "INC-111",
+        "action": "retry_job",
+        "result": "SUCCESS",
+        "risk_level": "LOW",
+        "reprocessing_result": "SUCCESS",
+        "verified": true,
+        "lesson_learned": "Quarantine the identified malformed message with approval before retrying the job.",
+        "resolution_time_minutes": 9
+      }
+    ],
+    "final_resolution": "Quarantine the identified malformed message with approval before retrying the job."
+  },
+  {
+    "incident": {
+      "incident_id": "INC-112",
+      "service": "queue-service",
+      "severity": "MEDIUM",
+      "symptoms": [
+        "consumer repeatedly crashes",
+        "queue backlog growing"
+      ],
+      "error_code": "QUEUE_POISON_MESSAGE",
+      "error_message": "QUEUE_POISON_MESSAGE: consumer repeatedly crashes",
+      "environment": "staging",
+      "recent_change": null,
+      "job_id": "SYN-JOB-112"
+    },
+    "root_cause": "malformed message blocks queue consumer",
+    "outcomes": [
+      {
+        "outcome_id": "OUT-112-1",
+        "incident_id": "INC-112",
+        "action": "retry_job",
+        "result": "FAILED",
+        "risk_level": "LOW",
+        "reprocessing_result": "FAILED",
+        "verified": true,
+        "lesson_learned": "Retry alone did not address the underlying cause.",
+        "resolution_time_minutes": null
+      },
+      {
+        "outcome_id": "OUT-112-2",
+        "incident_id": "INC-112",
+        "action": "quarantine_poison_message",
+        "result": "SUCCESS",
+        "risk_level": "MEDIUM",
+        "reprocessing_result": null,
+        "verified": true,
+        "lesson_learned": "Quarantine the identified malformed message with approval before retrying the job.",
+        "resolution_time_minutes": null
+      },
+      {
+        "outcome_id": "OUT-112-3",
+        "incident_id": "INC-112",
+        "action": "retry_job",
+        "result": "SUCCESS",
+        "risk_level": "LOW",
+        "reprocessing_result": "SUCCESS",
+        "verified": true,
+        "lesson_learned": "Quarantine the identified malformed message with approval before retrying the job.",
+        "resolution_time_minutes": 12
+      }
+    ],
+    "final_resolution": "Quarantine the identified malformed message with approval before retrying the job."
+  },
+  {
+    "incident": {
+      "incident_id": "INC-113",
+      "service": "catalog-service",
+      "severity": "MEDIUM",
+      "symptoms": [
+        "catalog response is stale",
+        "cache version mismatch"
+      ],
+      "error_code": "CACHE_VERSION_MISMATCH",
+      "error_message": "CACHE_VERSION_MISMATCH: catalog response is stale",
+      "environment": "production",
+      "recent_change": "Synthetic deployment preceding incident"
+    },
+    "root_cause": "stale non-critical catalog cache",
+    "outcomes": [
+      {
+        "outcome_id": "OUT-113-1",
+        "incident_id": "INC-113",
+        "action": "retry_request",
+        "result": "FAILED",
+        "risk_level": "LOW",
+        "reprocessing_result": "FAILED",
+        "verified": true,
+        "lesson_learned": "Retry alone did not address the underlying cause.",
+        "resolution_time_minutes": null
+      },
+      {
+        "outcome_id": "OUT-113-2",
+        "incident_id": "INC-113",
+        "action": "reset_safe_cache",
+        "result": "SUCCESS",
+        "risk_level": "LOW",
+        "reprocessing_result": null,
+        "verified": true,
+        "lesson_learned": "Invalidate the simulated catalog cache before retrying the request.",
+        "resolution_time_minutes": null
+      },
+      {
+        "outcome_id": "OUT-113-3",
+        "incident_id": "INC-113",
+        "action": "retry_request",
+        "result": "SUCCESS",
+        "risk_level": "LOW",
+        "reprocessing_result": "SUCCESS",
+        "verified": true,
+        "lesson_learned": "Invalidate the simulated catalog cache before retrying the request.",
+        "resolution_time_minutes": 6
+      }
+    ],
+    "final_resolution": "Invalidate the simulated catalog cache before retrying the request."
+  },
+  {
+    "incident": {
+      "incident_id": "INC-114",
+      "service": "catalog-service",
+      "severity": "MEDIUM",
+      "symptoms": [
+        "catalog response is stale",
+        "cache version mismatch",
+        "intermittent failures during peak load"
+      ],
+      "error_code": "CACHE_VERSION_MISMATCH",
+      "error_message": "CACHE_VERSION_MISMATCH: catalog response is stale",
+      "environment": "production",
+      "recent_change": null
+    },
+    "root_cause": "stale non-critical catalog cache",
+    "outcomes": [
+      {
+        "outcome_id": "OUT-114-1",
+        "incident_id": "INC-114",
+        "action": "retry_request",
+        "result": "FAILED",
+        "risk_level": "LOW",
+        "reprocessing_result": "FAILED",
+        "verified": true,
+        "lesson_learned": "Retry alone did not address the underlying cause.",
+        "resolution_time_minutes": null
+      },
+      {
+        "outcome_id": "OUT-114-2",
+        "incident_id": "INC-114",
+        "action": "reset_safe_cache",
+        "result": "SUCCESS",
+        "risk_level": "LOW",
+        "reprocessing_result": null,
+        "verified": true,
+        "lesson_learned": "Invalidate the simulated catalog cache before retrying the request.",
+        "resolution_time_minutes": null
+      },
+      {
+        "outcome_id": "OUT-114-3",
+        "incident_id": "INC-114",
+        "action": "retry_request",
+        "result": "SUCCESS",
+        "risk_level": "LOW",
+        "reprocessing_result": "SUCCESS",
+        "verified": true,
+        "lesson_learned": "Invalidate the simulated catalog cache before retrying the request.",
+        "resolution_time_minutes": 9
+      }
+    ],
+    "final_resolution": "Invalidate the simulated catalog cache before retrying the request."
+  },
+  {
+    "incident": {
+      "incident_id": "INC-115",
+      "service": "catalog-service",
+      "severity": "MEDIUM",
+      "symptoms": [
+        "catalog response is stale",
+        "cache version mismatch"
+      ],
+      "error_code": "CACHE_VERSION_MISMATCH",
+      "error_message": "CACHE_VERSION_MISMATCH: catalog response is stale",
+      "environment": "staging",
+      "recent_change": null
+    },
+    "root_cause": "stale non-critical catalog cache",
+    "outcomes": [
+      {
+        "outcome_id": "OUT-115-1",
+        "incident_id": "INC-115",
+        "action": "retry_request",
+        "result": "FAILED",
+        "risk_level": "LOW",
+        "reprocessing_result": "FAILED",
+        "verified": true,
+        "lesson_learned": "Retry alone did not address the underlying cause.",
+        "resolution_time_minutes": null
+      },
+      {
+        "outcome_id": "OUT-115-2",
+        "incident_id": "INC-115",
+        "action": "reset_safe_cache",
+        "result": "SUCCESS",
+        "risk_level": "LOW",
+        "reprocessing_result": null,
+        "verified": true,
+        "lesson_learned": "Invalidate the simulated catalog cache before retrying the request.",
+        "resolution_time_minutes": null
+      },
+      {
+        "outcome_id": "OUT-115-3",
+        "incident_id": "INC-115",
+        "action": "retry_request",
+        "result": "SUCCESS",
+        "risk_level": "LOW",
+        "reprocessing_result": "SUCCESS",
+        "verified": true,
+        "lesson_learned": "Invalidate the simulated catalog cache before retrying the request.",
+        "resolution_time_minutes": 12
+      }
+    ],
+    "final_resolution": "Invalidate the simulated catalog cache before retrying the request."
+  },
+  {
+    "incident": {
+      "incident_id": "INC-116",
+      "service": "fulfillment-service",
+      "severity": "HIGH",
+      "symptoms": [
+        "downstream request timed out",
+        "dependency health check fails"
+      ],
+      "error_code": "DOWNSTREAM_TIMEOUT",
+      "error_message": "DOWNSTREAM_TIMEOUT: downstream request timed out",
+      "environment": "production",
+      "recent_change": "Synthetic deployment preceding incident"
+    },
+    "root_cause": "downstream dependency unavailable",
+    "outcomes": [
+      {
+        "outcome_id": "OUT-116-1",
+        "incident_id": "INC-116",
+        "action": "retry_request",
+        "result": "FAILED",
+        "risk_level": "LOW",
+        "reprocessing_result": "FAILED",
+        "verified": true,
+        "lesson_learned": "Retry alone did not address the underlying cause.",
+        "resolution_time_minutes": null
+      },
+      {
+        "outcome_id": "OUT-116-2",
+        "incident_id": "INC-116",
+        "action": "switch_downstream_endpoint",
+        "result": "SUCCESS",
+        "risk_level": "HIGH",
+        "reprocessing_result": null,
+        "verified": true,
+        "lesson_learned": "Require approval for an endpoint change and check health before retrying.",
+        "resolution_time_minutes": null
+      },
+      {
+        "outcome_id": "OUT-116-3",
+        "incident_id": "INC-116",
+        "action": "retry_request",
+        "result": "SUCCESS",
+        "risk_level": "LOW",
+        "reprocessing_result": "SUCCESS",
+        "verified": true,
+        "lesson_learned": "Require approval for an endpoint change and check health before retrying.",
+        "resolution_time_minutes": 6
+      }
+    ],
+    "final_resolution": "Require approval for an endpoint change and check health before retrying."
+  },
+  {
+    "incident": {
+      "incident_id": "INC-117",
+      "service": "fulfillment-service",
+      "severity": "HIGH",
+      "symptoms": [
+        "downstream request timed out",
+        "dependency health check fails",
+        "intermittent failures during peak load"
+      ],
+      "error_code": "DOWNSTREAM_TIMEOUT",
+      "error_message": "DOWNSTREAM_TIMEOUT: downstream request timed out",
+      "environment": "production",
+      "recent_change": null
+    },
+    "root_cause": "downstream dependency unavailable",
+    "outcomes": [
+      {
+        "outcome_id": "OUT-117-1",
+        "incident_id": "INC-117",
+        "action": "retry_request",
+        "result": "FAILED",
+        "risk_level": "LOW",
+        "reprocessing_result": "FAILED",
+        "verified": true,
+        "lesson_learned": "Retry alone did not address the underlying cause.",
+        "resolution_time_minutes": null
+      },
+      {
+        "outcome_id": "OUT-117-2",
+        "incident_id": "INC-117",
+        "action": "switch_downstream_endpoint",
+        "result": "SUCCESS",
+        "risk_level": "HIGH",
+        "reprocessing_result": null,
+        "verified": true,
+        "lesson_learned": "Require approval for an endpoint change and check health before retrying.",
+        "resolution_time_minutes": null
+      },
+      {
+        "outcome_id": "OUT-117-3",
+        "incident_id": "INC-117",
+        "action": "retry_request",
+        "result": "SUCCESS",
+        "risk_level": "LOW",
+        "reprocessing_result": "SUCCESS",
+        "verified": true,
+        "lesson_learned": "Require approval for an endpoint change and check health before retrying.",
+        "resolution_time_minutes": 9
+      }
+    ],
+    "final_resolution": "Require approval for an endpoint change and check health before retrying."
+  },
+  {
+    "incident": {
+      "incident_id": "INC-118",
+      "service": "fulfillment-service",
+      "severity": "HIGH",
+      "symptoms": [
+        "downstream request timed out",
+        "dependency health check fails"
+      ],
+      "error_code": "DOWNSTREAM_TIMEOUT",
+      "error_message": "DOWNSTREAM_TIMEOUT: downstream request timed out",
+      "environment": "staging",
+      "recent_change": null
+    },
+    "root_cause": "downstream dependency unavailable",
+    "outcomes": [
+      {
+        "outcome_id": "OUT-118-1",
+        "incident_id": "INC-118",
+        "action": "retry_request",
+        "result": "FAILED",
+        "risk_level": "LOW",
+        "reprocessing_result": "FAILED",
+        "verified": true,
+        "lesson_learned": "Retry alone did not address the underlying cause.",
+        "resolution_time_minutes": null
+      },
+      {
+        "outcome_id": "OUT-118-2",
+        "incident_id": "INC-118",
+        "action": "switch_downstream_endpoint",
+        "result": "SUCCESS",
+        "risk_level": "HIGH",
+        "reprocessing_result": null,
+        "verified": true,
+        "lesson_learned": "Require approval for an endpoint change and check health before retrying.",
+        "resolution_time_minutes": null
+      },
+      {
+        "outcome_id": "OUT-118-3",
+        "incident_id": "INC-118",
+        "action": "retry_request",
+        "result": "SUCCESS",
+        "risk_level": "LOW",
+        "reprocessing_result": "SUCCESS",
+        "verified": true,
+        "lesson_learned": "Require approval for an endpoint change and check health before retrying.",
+        "resolution_time_minutes": 12
+      }
+    ],
+    "final_resolution": "Require approval for an endpoint change and check health before retrying."
+  }
+]

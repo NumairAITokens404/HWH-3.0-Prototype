@@ -1,0 +1,140 @@
+[
+  {
+    "incident": {
+      "incident_id": "TEST-001",
+      "service": "customer-service",
+      "severity": "HIGH",
+      "symptoms": [
+        "transaction failed",
+        "invalid customer PIN state"
+      ],
+      "error_code": "PIN_STATE_INVALID",
+      "environment": "production"
+    },
+    "expected_root_cause": "stale PIN master data",
+    "expected_action": "reset_customer_pin",
+    "relevant_incident_ids": [
+      "INC-101",
+      "INC-102",
+      "INC-103"
+    ],
+    "actions_to_avoid_before_remediation": [
+      "reprocess_transaction"
+    ]
+  },
+  {
+    "incident": {
+      "incident_id": "TEST-002",
+      "service": "payment-service",
+      "severity": "HIGH",
+      "symptoms": [
+        "payment authorization failed",
+        "stale provider routing data"
+      ],
+      "error_code": "PAYMENT_ROUTE_STALE",
+      "environment": "production"
+    },
+    "expected_root_cause": "outdated payment provider routing cache",
+    "expected_action": "refresh_payment_routing",
+    "relevant_incident_ids": [
+      "INC-104",
+      "INC-105",
+      "INC-106"
+    ],
+    "actions_to_avoid_before_remediation": [
+      "retry_request"
+    ]
+  },
+  {
+    "incident": {
+      "incident_id": "TEST-003",
+      "service": "database-service",
+      "severity": "HIGH",
+      "symptoms": [
+        "connection pool exhausted",
+        "queries waiting for a connection"
+      ],
+      "error_code": "DB_POOL_EXHAUSTED",
+      "environment": "production"
+    },
+    "expected_root_cause": "leaked database connections after deployment",
+    "expected_action": "rollback_connection_pool_change",
+    "relevant_incident_ids": [
+      "INC-107",
+      "INC-108",
+      "INC-109"
+    ],
+    "actions_to_avoid_before_remediation": [
+      "retry_request"
+    ]
+  },
+  {
+    "incident": {
+      "incident_id": "TEST-004",
+      "service": "queue-service",
+      "severity": "HIGH",
+      "symptoms": [
+        "consumer repeatedly crashes",
+        "queue backlog growing"
+      ],
+      "error_code": "QUEUE_POISON_MESSAGE",
+      "environment": "production"
+    },
+    "expected_root_cause": "malformed message blocks queue consumer",
+    "expected_action": "quarantine_poison_message",
+    "relevant_incident_ids": [
+      "INC-110",
+      "INC-111",
+      "INC-112"
+    ],
+    "actions_to_avoid_before_remediation": [
+      "retry_job"
+    ]
+  },
+  {
+    "incident": {
+      "incident_id": "TEST-005",
+      "service": "catalog-service",
+      "severity": "HIGH",
+      "symptoms": [
+        "catalog response is stale",
+        "cache version mismatch"
+      ],
+      "error_code": "CACHE_VERSION_MISMATCH",
+      "environment": "production"
+    },
+    "expected_root_cause": "stale non-critical catalog cache",
+    "expected_action": "reset_safe_cache",
+    "relevant_incident_ids": [
+      "INC-113",
+      "INC-114",
+      "INC-115"
+    ],
+    "actions_to_avoid_before_remediation": [
+      "retry_request"
+    ]
+  },
+  {
+    "incident": {
+      "incident_id": "TEST-006",
+      "service": "fulfillment-service",
+      "severity": "HIGH",
+      "symptoms": [
+        "downstream request timed out",
+        "dependency health check fails"
+      ],
+      "error_code": "DOWNSTREAM_TIMEOUT",
+      "environment": "production"
+    },
+    "expected_root_cause": "downstream dependency unavailable",
+    "expected_action": "switch_downstream_endpoint",
+    "relevant_incident_ids": [
+      "INC-116",
+      "INC-117",
+      "INC-118"
+    ],
+    "actions_to_avoid_before_remediation": [
+      "retry_request"
+    ]
+  }
+]
