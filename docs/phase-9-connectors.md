@@ -17,6 +17,7 @@ The sandbox service implements:
 | `POST /v1/remediations/{allowlisted_action}` with the incident, action, and `idempotency_key` | A valid `ToolResult` object |
 | `POST /v1/reprocess` with the incident, derived retry action, and `idempotency_key` | A valid `ToolResult` object |
 | `GET /v1/status?incident_id=...` | `{ "service_healthy": bool, "operation_recovered": bool, "detail": "..." }` |
+| `GET /v1/receipts/{idempotency_key}` | `{ "state": "PENDING" }` or `{ "state": "COMPLETED", "result": ToolResult }` |
 
 Responses are limited to 1 MiB, validated before use, and must identify the requested action. Tool acknowledgements still do not prove recovery; the independent status request decides the final outcome.
 
@@ -29,7 +30,7 @@ Before a side-effecting request leaves the process, its deterministic idempotenc
 - A timeout, process interruption, or invalid response leaves the receipt pending.
 - Pending receipts are never retried automatically because the remote side effect may already have occurred.
 
-This provides local at-most-once dispatch. A production connector should also honor the supplied idempotency identity and provide a reconciliation endpoint before an uncertain operation is cleared.
+This provides local at-most-once dispatch. The `reconcile(idempotency_key)` operation queries the sandbox receipt endpoint and completes the local receipt only after the remote result matches the original key. A production connector must honor the supplied idempotency identity before an uncertain operation is cleared.
 
 ## Docker configuration
 

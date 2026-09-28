@@ -95,6 +95,26 @@ class ConnectorTests(unittest.TestCase):
         self.assertEqual(calls, 1)
         store.close()
 
+    def test_uncertain_call_can_be_reconciled_without_reexecution(self):
+        def timeout(method, url, payload):
+            raise TimeoutError
+        store = ConnectorReceiptStore(None)
+        connector = SandboxHTTPConnector("http://sandbox.internal", 5, store, timeout)
+        with self.assertRaises(ConnectorUnavailable):
+            connector.remediate(self.incident, "reset_customer_pin")
+        payload = {"incident": self.incident.model_dump(), "action": "reset_customer_pin"}
+        key, _ = connector._identity("remediation", payload)
+        connector._transport = lambda method, url, body: {
+            "state": "COMPLETED",
+            "result": {"action": "reset_customer_pin", "result": "SUCCESS",
+                        "detail": "Confirmed by sandbox receipt.", "idempotency_key": key},
+        }
+        reconciled = connector.reconcile(key)
+        self.assertEqual(reconciled.idempotency_key, key)
+        replay = connector.remediate(self.incident, "reset_customer_pin")
+        self.assertTrue(replay.receipt_replayed)
+        store.close()
+
     def test_direct_connector_rejects_wrong_context(self):
         store = ConnectorReceiptStore(None)
         wrong = self.incident.model_copy(update={"service": "database-service"})

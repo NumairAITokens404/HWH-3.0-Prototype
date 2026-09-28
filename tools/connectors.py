@@ -60,6 +60,13 @@ class ConnectorReceiptStore:
             if changed != 1:
                 raise ConnectorUnavailable("Connector receipt could not be completed")
 
+    def reconcile(self, key: str, result: ToolResult) -> ToolResult:
+        if result.idempotency_key != key:
+            raise ValueError("Reconciled result does not match the receipt key")
+        result = result.model_copy(update={"execution_mode": "connector", "receipt_replayed": False})
+        self.complete(key, result)
+        return result
+
     def close(self) -> None:
         with self._lock:
             self._connection.close()
@@ -140,6 +147,27 @@ class SandboxHTTPConnector:
             return healthy, recovered, detail
         except Exception:
             raise ConnectorUnavailable("Connector status check failed") from None
+
+    def reconcile(self, idempotency_key: str) -> ToolResult | None:
+        """Ask the sandbox whether an uncertain operation completed.
+
+        ``None`` means the sandbox still reports the operation as pending.
+        """
+        if not idempotency_key.strip():
+            raise ValueError("idempotency_key must not be empty")
+        try:
+            response = self._transport("GET", f"{self.base_url}/v1/receipts/{quote(idempotency_key, safe='')}", None)
+            state = response.get("state")
+            if state == "PENDING":
+                return None
+            if state != "COMPLETED":
+                raise ValueError("Sandbox returned an unknown receipt state")
+            result = ToolResult.model_validate(response.get("result"))
+            return self.receipts.reconcile(idempotency_key, result)
+        except ConnectorUnavailable:
+            raise
+        except Exception:
+            raise ConnectorUnavailable("Sandbox receipt reconciliation failed") from None
 
     def _request(self, method: str, url: str, payload: dict | None):
         data = json.dumps(payload).encode() if payload is not None else None
