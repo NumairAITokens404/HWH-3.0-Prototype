@@ -42,8 +42,9 @@ def audit(data_dir: Path) -> dict:
         "passed": all(checks.values()),
         "sha256": payload_hashes,
         "limitations": [
-            "Synthetic fixtures cover six known incident families.",
-            "Six held-out cases are sufficient for deterministic regression, not statistical claims.",
+            "The benchmark contains twelve held-out variants across six services, including contradictory symptoms and unseen environments.",
+            "Labels remain synthetic and are intended for workflow regression and safety analysis, not statistical production accuracy claims.",
+            "Rejection outcomes are represented as first-class negative evidence and must be retained in memory after human review.",
             "Production validation requires de-identified real incidents and blinded labels.",
         ],
     }

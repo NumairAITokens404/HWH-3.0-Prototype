@@ -14,6 +14,6 @@ class DatasetAuditTests(unittest.TestCase):
         report = audit(ROOT / "data")
         self.assertTrue(report["passed"])
         self.assertEqual(report["counts"], {"historical_incidents": 18,
-                                             "held_out_cases": 6, "outcomes": 54})
+                                             "held_out_cases": 12, "outcomes": 54})
         self.assertEqual(set(report["history_services"]), set(report["held_out_services"]))
         self.assertEqual(len(report["sha256"]), 3)

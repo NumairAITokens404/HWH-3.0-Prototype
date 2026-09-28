@@ -136,5 +136,47 @@
     "actions_to_avoid_before_remediation": [
       "retry_request"
     ]
+  },
+  {
+    "incident": {"incident_id": "HELD-007", "service": "customer-service", "severity": "HIGH", "symptoms": ["PIN validation fails only for migrated accounts", "support reports intermittent success", "customer profile cache is warm"], "environment": "production", "error_code": "PIN_STATE_INVALID"},
+    "expected_root_cause": "stale PIN master data after account migration",
+    "expected_action": "reset_customer_pin",
+    "relevant_incident_ids": ["INC-101", "INC-102"],
+    "actions_to_avoid_before_remediation": ["reprocess_transaction", "disable_pin_validation"]
+  },
+  {
+    "incident": {"incident_id": "HELD-008", "service": "payment-service", "severity": "MEDIUM", "symptoms": ["authorization fails for one provider region", "routing cache age is unknown", "provider dashboard reports healthy traffic"], "environment": "production", "error_code": "PAYMENT_ROUTE_STALE"},
+    "expected_root_cause": "possibly stale provider routing data with contradictory provider telemetry",
+    "expected_action": "refresh_payment_routing",
+    "relevant_incident_ids": ["INC-104", "INC-105"],
+    "actions_to_avoid_before_remediation": ["retry_request", "rotate_provider_credentials"]
+  },
+  {
+    "incident": {"incident_id": "HELD-009", "service": "database-service", "severity": "CRITICAL", "symptoms": ["connection pool saturation", "deployment rollback already started", "some replicas remain healthy"], "environment": "staging", "error_code": "DB_POOL_EXHAUSTED", "recent_change": "connection-pool library upgrade"},
+    "expected_root_cause": "connection leak introduced by a recent pool change",
+    "expected_action": "rollback_connection_pool_change",
+    "relevant_incident_ids": ["INC-107", "INC-108"],
+    "actions_to_avoid_before_remediation": ["retry_request", "increase_pool_limit_without_review"]
+  },
+  {
+    "incident": {"incident_id": "HELD-010", "service": "queue-service", "severity": "HIGH", "symptoms": ["consumer crashes on one partition", "dead-letter queue is increasing", "message schema is disputed by producer team"], "environment": "production", "error_code": "QUEUE_POISON_MESSAGE"},
+    "expected_root_cause": "malformed or incompatible message blocks one consumer partition",
+    "expected_action": "quarantine_poison_message",
+    "relevant_incident_ids": ["INC-110", "INC-111"],
+    "actions_to_avoid_before_remediation": ["retry_job", "purge_the_queue"]
+  },
+  {
+    "incident": {"incident_id": "HELD-011", "service": "catalog-service", "severity": "LOW", "symptoms": ["stale responses affect a small tenant subset", "cache invalidation completed on two nodes", "origin data is current"], "environment": "production", "error_code": "CACHE_VERSION_MISMATCH"},
+    "expected_root_cause": "inconsistent cache version across catalog workers",
+    "expected_action": "reset_safe_cache",
+    "relevant_incident_ids": ["INC-113", "INC-115"],
+    "actions_to_avoid_before_remediation": ["restart_database", "retry_request"]
+  },
+  {
+    "incident": {"incident_id": "HELD-012", "service": "fulfillment-service", "severity": "CRITICAL", "symptoms": ["dependency timeouts began after DNS change", "health checks disagree across zones", "retry volume is amplifying latency"], "environment": "production", "error_code": "DOWNSTREAM_TIMEOUT", "recent_change": "regional endpoint migration"},
+    "expected_root_cause": "regional downstream endpoint instability after migration",
+    "expected_action": "switch_downstream_endpoint",
+    "relevant_incident_ids": ["INC-116", "INC-117"],
+    "actions_to_avoid_before_remediation": ["retry_request", "increase_timeout"]
   }
 ]
