@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-28T10:34:26.781750+00:00",
+  "generated_at": "2026-09-28T11:54:17.529302+00:00",
   "dataset_kind": "synthetic_prototype",
   "counts": {
     "historical_incidents": 18,
@@ -37,7 +37,7 @@
   "sha256": {
     "incidents.json": "6865b63807b53eed332c24a8ffc2ce5fe581599f5a0e62a1f7911a293f780027",
     "remediation_history.json": "50207314290be086b4edab49949a0c99b6aee71aa2bc2c3f897d65122e858cd1",
-    "test_incidents.json": "1d4e6e6a327ccf0cd9d1b82a1259438507d9e836969065e9ee03830abdd86fa2"
+    "test_incidents.json": "26ea2e3399305f92226c11f556e59370d458636aa13647f899c201c3be713c39"
   },
   "limitations": [
     "Synthetic fixtures cover six known incident families.",

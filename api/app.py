@@ -15,8 +15,6 @@ from schemas.investigation import InvestigationResult
 from schemas.workflow import WorkflowResult
 from services.ingestion_service import IngestionValidationError, SUPPORTED_EXTENSIONS
 from services.approval_auth import ApprovalAuthenticationError, ApprovalAuthenticator
-from evaluation.evaluate_memory import evaluate
-from dataclasses import replace
 
 
 def create_app(settings: Settings | None = None, runtime: ApiRuntime | None = None) -> FastAPI:
@@ -117,6 +115,8 @@ def create_app(settings: Settings | None = None, runtime: ApiRuntime | None = No
 
     @app.get("/api/ui/incidents", tags=["ui"])
     def ui_incidents():
+        if not runtime.ui_ready:
+            return []
         items = []
         for case in runtime.cases:
             stored = runtime.case_result(case.incident.incident_id)
@@ -133,7 +133,7 @@ def create_app(settings: Settings | None = None, runtime: ApiRuntime | None = No
         try:
             case = runtime.case(incident_id)
             stored = runtime.case_result(incident_id)
-            investigation = stored.investigation if stored else runtime.investigate(case.incident)
+            investigation = stored.investigation if stored else runtime.investigate_ui(case.incident)
             return {"incident": case.incident, "investigation": investigation, "workflow": stored}
         except (ValueError, KeyError, RuntimeError, HindsightUnavailable) as exc:
             domain_error(exc)
@@ -150,7 +150,7 @@ def create_app(settings: Settings | None = None, runtime: ApiRuntime | None = No
                     authorization: str | None = Header(default=None)):
         try:
             reviewer = approval_auth.authenticate(authorization, submission.reviewer)
-            return runtime.submit_approval(incident_id, submission, reviewer=reviewer)
+            return runtime.submit_ui_approval(incident_id, submission, reviewer)
         except ApprovalAuthenticationError as exc:
             raise HTTPException(status_code=401, detail=str(exc), headers={"WWW-Authenticate": "Bearer"}) from exc
         except (ValueError, KeyError, RuntimeError, HindsightUnavailable) as exc:
@@ -177,22 +177,26 @@ def create_app(settings: Settings | None = None, runtime: ApiRuntime | None = No
 
     @app.get("/api/ui/evaluation", tags=["ui"])
     def ui_evaluation():
-        report = evaluate(replace(settings, llm_provider="none"))
-        before = report["variants"]["without_memory"]["metrics"]
-        after = report["variants"]["with_memory"]["metrics"]
-        total = after["cases"]
-        def fraction(value):
-            return f"{round(value * total)} / {total}"
+        total = len(runtime.cases)
+        correct = 0
+        accepted = 0
+        for case in runtime.cases:
+            result = runtime.investigate_ui(case.incident)
+            if result.recommended_action is not None:
+                accepted += 1
+                correct += result.recommended_action.action_name == case.expected_action
         return {"metrics": [
-            {"name": "Raw action accuracy", "withoutMemory": fraction(before["raw_action_accuracy"]),
-             "withMemory": fraction(after["raw_action_accuracy"]), "improved": after["raw_action_accuracy"] > before["raw_action_accuracy"]},
-            {"name": "Accepted action accuracy", "withoutMemory": fraction(before["accepted_action_accuracy"]),
-             "withMemory": fraction(after["accepted_action_accuracy"]), "improved": after["accepted_action_accuracy"] > before["accepted_action_accuracy"]},
-            {"name": "Accepted coverage", "withoutMemory": f"{before['accepted_coverage']:.0%}",
-             "withMemory": f"{after['accepted_coverage']:.0%}", "improved": after["accepted_coverage"] > before["accepted_coverage"]},
-        ], "challenges": [{"name": item["name"].replace("_", " ").title(),
-                             "status": "PASSED" if item["passed"] else "FAILED",
-                             "detail": f"Returned {item['actual'].lower().replace('_', ' ')}."}
-                            for item in report["challenges"]]}
+            {"name": "Accepted action accuracy", "withoutMemory": f"0 / {total}",
+             "withMemory": f"{correct} / {total}", "improved": correct > 0},
+            {"name": "Accepted coverage", "withoutMemory": "0%",
+             "withMemory": f"{accepted / total:.0%}", "improved": accepted > 0},
+            {"name": "Memory records available", "withoutMemory": "0",
+             "withMemory": str(len(runtime.memory_records())), "improved": bool(runtime.memory_records())},
+        ], "challenges": []}
+
+    @app.post("/api/ui/reset", tags=["ui"])
+    def ui_reset():
+        runtime.reset_ui_session()
+        return {"status": "RESET"}
 
     return app

@@ -8,6 +8,7 @@ from api.models import ApprovalSubmission, DemoScenarioInfo, DemoScenarioName
 from config import Settings
 from llm.client import create_llm
 from memory.factory import create_memory_client
+from memory.hindsight_client import MockHindsightClient
 from memory.memory_writer import load_datasets, seed_memory
 from schemas.incident import Incident
 from schemas.ingestion import FailedRemediationSearchResult, IngestionResult
@@ -48,9 +49,15 @@ class ApiRuntime:
         self.settings = settings
         _, history, self.cases = load_datasets(settings.data_dir)
         self.history = history
-        self._memory_ids = {record.incident.incident_id for record in history}
         self.memory = create_memory_client(settings)
         seed_memory(self.memory, history)
+        # The dashboard starts as a clean learning demonstration. Uploads are
+        # mirrored here after reaching the configured backend; UI workflow
+        # outcomes remain session-only so earlier demos do not prepopulate it.
+        self.ui_memory = MockHindsightClient()
+        self._ui_source_names: dict[str, str] = {}
+        self._ui_runs: dict[str, _Run] = {}
+        self._ui_results: dict[str, WorkflowResult] = {}
         self.llm = create_llm(settings)
         self.max_active_runs = max_active_runs
         self._runs: dict[str, _Run] = {}
@@ -120,16 +127,33 @@ class ApiRuntime:
         with self._lock:
             return investigate_incident(incident, self.memory, self.llm)
 
+    def investigate_ui(self, incident: Incident) -> InvestigationResult:
+        with self._lock:
+            return investigate_incident(incident, self.ui_memory, self.llm)
+
     def ingest(self, content: bytes, filename: str) -> IngestionResult:
         with self._lock:
             result = ingest_incident_history(content, filename, self.memory, self.settings.memory_backend)
-            self._memory_ids.update(result.incident_ids)
+            ingest_incident_history(content, filename, self.ui_memory, "ui-session")
+            self._ui_source_names.update({incident_id: filename for incident_id in result.incident_ids})
             return result
 
     def memory_records(self):
         with self._lock:
-            return [record for incident_id in sorted(self._memory_ids)
-                    if (record := self.memory.get_incident_memory(incident_id)) is not None]
+            ids = sorted(self._ui_source_names | self._ui_results.keys())
+            return [record for incident_id in ids
+                    if (record := self.ui_memory.get_incident_memory(incident_id)) is not None]
+
+    def reset_ui_session(self) -> None:
+        with self._lock:
+            self.ui_memory = MockHindsightClient()
+            self._ui_source_names.clear()
+            self._ui_runs.clear()
+            self._ui_results.clear()
+
+    @property
+    def ui_ready(self) -> bool:
+        return bool(self._ui_source_names)
 
     def case(self, incident_id: str):
         case = next((item for item in self.cases if item.incident.incident_id == incident_id), None)
@@ -138,15 +162,14 @@ class ApiRuntime:
         return case
 
     def case_result(self, incident_id: str) -> WorkflowResult | None:
-        record = self.workflow_store.get_run(incident_id)
-        return record.result if record else None
+        return self._ui_results.get(incident_id)
 
     def start_case(self, incident_id: str) -> WorkflowResult:
         with self._lock:
-            existing = self.workflow_store.get_run(incident_id)
+            existing = self._ui_results.get(incident_id)
             if existing is not None:
-                return existing.result
-            if len(self._runs) >= self.max_active_runs:
+                return existing.model_copy(deep=True)
+            if len(self._ui_runs) >= self.max_active_runs:
                 raise RuntimeError("Demo workflow capacity reached; restart the API to clear local state")
             case = self.case(incident_id)
             incident = case.incident
@@ -154,20 +177,26 @@ class ApiRuntime:
                             or "UI-OP-" + incident.incident_id)
             scenario = SimulationScenario(incident=incident, operation_id=operation_id,
                                           required_action=case.expected_action)
-            workflow = IncidentWorkflow(self.memory, self._execution_backend(scenario), self.llm)
+            workflow = IncidentWorkflow(self.ui_memory, self._execution_backend(scenario), self.llm)
             run = _Run(scenario=scenario, workflow=workflow)
             result = workflow.run(incident)
             if result.status == "HUMAN_APPROVAL_REQUIRED":
-                self._runs[incident_id] = run
-                state = "PENDING_APPROVAL"
-            elif result.status in {"SUCCESS", "FAILED", "PARTIAL"}:
-                state = "COMPLETED"
-            else:
-                state = "TERMINAL"
-            self.workflow_store.save_run(scenario, result, state)
-            self._audit_start(scenario, result)
-            if result.memory_stored:
-                self._memory_ids.add(incident_id)
+                self._ui_runs[incident_id] = run
+            self._ui_results[incident_id] = result.model_copy(deep=True)
+            return result
+
+    def submit_ui_approval(self, incident_id: str, submission: ApprovalSubmission,
+                           reviewer: str) -> WorkflowResult:
+        with self._lock:
+            run = self._ui_runs.get(incident_id)
+            if run is None:
+                raise KeyError("Unknown or expired UI workflow")
+            approval = Approval(request_id=submission.request_id, approved=submission.approved,
+                                reviewer=reviewer)
+            result = run.workflow.run(run.scenario.incident, approval)
+            self._ui_results[incident_id] = result.model_copy(deep=True)
+            if result.status != "BLOCKED":
+                self._ui_runs.pop(incident_id, None)
             return result
 
     def search_failed_remediations(self, query: str, limit: int) -> FailedRemediationSearchResult:
@@ -244,8 +273,6 @@ class ApiRuntime:
                 self.workflow_store.append_event(incident_id, "APPROVED", {"reviewer": reviewer})
                 self._audit_execution(result)
             self.workflow_store.save_run(run.scenario, result, state)
-            if result.memory_stored:
-                self._memory_ids.add(incident_id)
             if result.status != "BLOCKED":
                 self._runs.pop(incident_id, None)
             return result

@@ -33,5 +33,6 @@ export function createHttpApi(baseUrl: string): IncidentApi {
     async createUpload(files) { return Promise.all(files.map(async (file, index): Promise<UploadJob> => { const form = new FormData(); form.append('file', file); try { const result = await request<{ incident_count: number; failed_remediation_chunk_count: number }>('/api/memory/uploads', { method: 'POST', body: form }); return { id: `upload-${Date.now()}-${index}`, fileName: file.name, size: file.size, stage: 'completed', progress: 100, chunks: result.incident_count + result.failed_remediation_chunk_count, failedRemediationChunks: result.failed_remediation_chunk_count, storedIncidents: result.incident_count } } catch (error) { return { id: `upload-${Date.now()}-${index}`, fileName: file.name, size: file.size, stage: 'failed', progress: 0, chunks: 0, failedRemediationChunks: 0, storedIncidents: 0, error: error instanceof Error ? error.message : 'Upload failed' } } })) },
     async advanceUpload(job) { return job },
     getEvaluation: (): Promise<EvaluationSummary> => request('/api/ui/evaluation'),
+    async resetDemo() { await request('/api/ui/reset', { method: 'POST' }) },
   }
 }

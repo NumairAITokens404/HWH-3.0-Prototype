@@ -20,6 +20,12 @@ class ApiTests(unittest.TestCase):
         self.runtime = ApiRuntime(self.settings)
         self.client = TestClient(create_app(self.settings, self.runtime))
 
+    def upload_demo_history(self):
+        return self.client.post("/api/memory/uploads", files={
+            "file": ("remediation_history.json", (ROOT / "data" / "remediation_history.json").read_bytes(),
+                     "application/json"),
+        })
+
     def test_health_capabilities_and_openapi(self):
         root = self.client.get("/")
         self.assertEqual(root.status_code, 200)
@@ -167,6 +173,10 @@ class ApiTests(unittest.TestCase):
     def test_ui_contract_supports_live_frontend_workflow(self):
         incidents = self.client.get("/api/ui/incidents")
         self.assertEqual(incidents.status_code, 200)
+        self.assertEqual(incidents.json(), [])
+        self.assertEqual(self.client.get("/api/ui/memory").json(), [])
+        self.assertEqual(self.upload_demo_history().status_code, 201)
+        incidents = self.client.get("/api/ui/incidents")
         self.assertEqual(len(incidents.json()), 6)
         detail = self.client.get("/api/ui/incidents/TEST-001")
         self.assertEqual(detail.status_code, 200)
@@ -179,6 +189,7 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(overview["memoryRecords"], 19)
 
     def test_ui_high_risk_workflow_resumes_with_approval(self):
+        self.assertEqual(self.upload_demo_history().status_code, 201)
         pending = self.client.post("/api/ui/incidents/TEST-003/workflow").json()
         self.assertEqual(pending["status"], "HUMAN_APPROVAL_REQUIRED")
         approved = self.client.post("/api/ui/incidents/TEST-003/approval", json={
@@ -188,12 +199,17 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(approved.json()["status"], "SUCCESS")
 
     def test_ui_memory_and_evaluation_are_live(self):
+        before = self.client.get("/api/ui/evaluation").json()
+        self.assertEqual(before["metrics"][0]["withMemory"], "0 / 6")
+        self.assertEqual(self.upload_demo_history().status_code, 201)
         memory = self.client.get("/api/ui/memory", params={"service": "queue-service", "result": "FAILED"})
         self.assertEqual(memory.status_code, 200)
         self.assertEqual(len(memory.json()), 3)
         evaluation = self.client.get("/api/ui/evaluation")
         self.assertEqual(evaluation.status_code, 200)
-        self.assertTrue(evaluation.json()["metrics"])
+        self.assertEqual(evaluation.json()["metrics"][0]["withMemory"], "6 / 6")
+        self.assertEqual(self.client.post("/api/ui/reset").json()["status"], "RESET")
+        self.assertEqual(self.client.get("/api/ui/incidents").json(), [])
 
 
 if __name__ == "__main__":

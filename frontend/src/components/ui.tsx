@@ -8,10 +8,10 @@ const tones: Record<string, string> = {
   PARTIAL: 'border-amber-200 bg-[#FFFBEB] text-[#B45309]', MEDIUM: 'border-amber-200 bg-[#FFFBEB] text-[#B45309]', APPROVAL_REQUIRED: 'border-amber-200 bg-[#FFFBEB] text-[#B45309]', HUMAN_APPROVAL_REQUIRED: 'border-amber-200 bg-[#FFFBEB] text-[#B45309]',
   LOW: 'border-blue-200 bg-blue-50 text-blue-700', INVESTIGATING: 'border-blue-200 bg-blue-50 text-blue-700', INSUFFICIENT_EVIDENCE: 'border-line bg-slate-50 text-muted',
 }
-const labels: Record<string, string> = { SUCCESS: 'Success', RESOLVED: 'Resolved', COMPLETED: 'Completed', PASSED: 'Passed', FAILED: 'Failed', CRITICAL: 'Critical', HIGH: 'High risk', MEDIUM: 'Medium risk', LOW: 'Low risk', PARTIAL: 'Partial recovery', APPROVAL_REQUIRED: 'Approval required', HUMAN_APPROVAL_REQUIRED: 'Approval required', INVESTIGATING: 'Investigating', ALLOWED: 'Allowed by policy', INSUFFICIENT_EVIDENCE: 'Insufficient evidence', BLOCKED: 'Blocked' }
+const labels: Record<string, string> = { SUCCESS: 'Success', RESOLVED: 'Resolved', COMPLETED: 'Completed', PASSED: 'Passed', FAILED: 'Failed', CRITICAL: 'Critical', HIGH: 'High', MEDIUM: 'Medium', LOW: 'Low', PARTIAL: 'Partial recovery', APPROVAL_REQUIRED: 'Approval required', HUMAN_APPROVAL_REQUIRED: 'Approval required', INVESTIGATING: 'Investigating', ALLOWED: 'Allowed by policy', INSUFFICIENT_EVIDENCE: 'Insufficient evidence', BLOCKED: 'Blocked' }
 
-export function StatusBadge({ value }: { value: string }) {
-  return <span className={clsx('inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold', tones[value] ?? 'border-line bg-slate-50 text-muted')}>{labels[value] ?? value.replaceAll('_', ' ').toLowerCase()}</span>
+export function StatusBadge({ value, label }: { value: string; label?: string }) {
+  return <span className={clsx('inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold', tones[value] ?? 'border-line bg-slate-50 text-muted')}>{label ?? labels[value] ?? value.replaceAll('_', ' ').toLowerCase()}</span>
 }
 
 export function PageHeader({ eyebrow, title, description, action }: { eyebrow: string; title: string; description: string; action?: React.ReactNode }) {

@@ -49,6 +49,10 @@ Live integration points:
 
 All remediation actions and observations shown by the frontend remain explicitly simulated. Uploads use the configured memory backend; Hindsight performs embeddings when that backend is active.
 
+## Demo lifecycle
+
+The live dashboard begins with an empty session: no incident queue, memory records, or improved evaluation score is shown until a valid history file is uploaded. **Load demo dataset** uploads the repository's real `data/remediation_history.json` fixture. **Reset demo** on the overview clears the dashboard session so the before/after story can be demonstrated again. The configured durable backend still receives uploads; the session projection prevents previous local runs from pre-populating a new demonstration.
+
 ## Design system
 
 The interface uses a restrained operations palette: navy navigation, blue actions, purple Hindsight evidence, green verified outcomes, amber approval states, and red failures. Surfaces use one-pixel borders, small radii, limited shadow, and compact 8px-based spacing. Hover behavior is limited to color changes and disclosure state transitions.

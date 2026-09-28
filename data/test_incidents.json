@@ -3,7 +3,7 @@
     "incident": {
       "incident_id": "TEST-001",
       "service": "customer-service",
-      "severity": "HIGH",
+      "severity": "MEDIUM",
       "symptoms": [
         "transaction failed",
         "invalid customer PIN state"
@@ -49,7 +49,7 @@
     "incident": {
       "incident_id": "TEST-003",
       "service": "database-service",
-      "severity": "HIGH",
+      "severity": "CRITICAL",
       "symptoms": [
         "connection pool exhausted",
         "queries waiting for a connection"
@@ -95,7 +95,7 @@
     "incident": {
       "incident_id": "TEST-005",
       "service": "catalog-service",
-      "severity": "HIGH",
+      "severity": "LOW",
       "symptoms": [
         "catalog response is stale",
         "cache version mismatch"
@@ -118,7 +118,7 @@
     "incident": {
       "incident_id": "TEST-006",
       "service": "fulfillment-service",
-      "severity": "HIGH",
+      "severity": "CRITICAL",
       "symptoms": [
         "downstream request timed out",
         "dependency health check fails"

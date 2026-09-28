@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { api } from '../api'
 import { PageHeader, StatusBadge, WorkflowNotice } from '../components/ui'
 import type { UploadJob, UploadStage } from '../types/domain'
+import demoHistory from '../../../data/remediation_history.json'
 
 const stages: Array<{ key: UploadStage; label: string; icon: React.ElementType; detail: string }> = [
   { key: 'uploading', label: 'Upload', icon: UploadCloud, detail: 'Receive source files' },
@@ -35,7 +36,7 @@ export function UploadPage() {
     setJobs((current) => [...created, ...current])
   }
   function loadDemo() {
-    addFiles([new File(['{"demo":"synthetic incident history"}'], 'remediation_history.json', { type: 'application/json' })])
+    addFiles([new File([JSON.stringify(demoHistory)], 'remediation_history.json', { type: 'application/json' })])
   }
   const complete = jobs.filter((job) => job.stage === 'completed')
   return <><PageHeader eyebrow="Memory ingestion" title="Upload incident records" description="Turn completed incident records into searchable Hindsight memory while retaining the full validated source and its ordered outcomes." action={<button className="btn-secondary" onClick={loadDemo}><FileJson size={17} />Load demo dataset</button>} />
