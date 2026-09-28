@@ -2,6 +2,8 @@
 
 [Documentation index](README.md)
 
+This document records the evaluation methodology introduced in Phase 6. Both the CLI and live dashboard now use all 12 held-out cases. The dashboard evaluates its current Hindsight namespace and publishes background progress, errors, and completed checkpoints. See [Architecture](architecture.md#measured-learning) for the current product path.
+
 ## Run
 
 ```powershell
@@ -9,7 +11,7 @@
 .venv\Scripts\python.exe -m evaluation.evaluate_memory --engine ollama --output reports/local-ollama.json
 ```
 
-Each engine runs the same six held-out cases with empty memory and with seeded historical memory. Each case has a fresh isolated store. Evaluation answers are used only by the scorer and simulator, never in the model prompt. Saved demo records cannot contaminate this comparison.
+The standalone CLI compares all 12 `TEST-*` and `HELD-*` cases with empty memory and seeded historical memory. Each case has a fresh isolated store. Evaluation answers are used only by the scorer and simulator, never in the model prompt. The dashboard evaluator runs the same case set against its live memory namespace.
 
 ## Metrics
 
@@ -38,9 +40,9 @@ Zero tool calls can mean abstention or waiting for approval. Only cases that exe
 
 Generated local reports are ignored by Git. Share a reviewed report with its model, timestamp, dataset size, and these limitations.
 
-## Latest local run
+## Archived Phase 6 local run
 
-On 2026-09-28, `qwen3.5:9b` completed all 12 comparison calls and three challenges with zero model fallbacks.
+On 2026-09-28, before the held-out set expanded, `qwen3.5:9b` completed 12 comparison calls across the original 6 cases and three challenges with zero model fallbacks. This table is historical evidence, not the current dashboard result.
 
 | Variant | Raw action accuracy | Accepted accuracy | Accepted coverage | Root-cause token F1 | Mean model latency |
 | --- | ---: | ---: | ---: | ---: | ---: |

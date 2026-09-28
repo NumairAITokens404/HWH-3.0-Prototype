@@ -12,7 +12,7 @@ python -m venv .venv
 Copy-Item .env.example .env
 ```
 
-For the full local stack, set these values in `.env`:
+For an offline local stack, set these values in `.env`:
 
 ```dotenv
 MEMORY_BACKEND=sqlite
@@ -23,6 +23,8 @@ LLM_CONTEXT=8192
 ```
 
 The application loads `.env` automatically. Existing shell variables take precedence. Relative data and database paths resolve from the project root.
+
+For the Hindsight-centered dashboard, start Hindsight as described in [Hindsight setup](hindsight-setup.md) and set `MEMORY_BACKEND=hindsight`. The API health response should report `memory_ready: true` before the demo.
 
 ## Choose a run mode
 
@@ -45,11 +47,11 @@ ollama pull qwen3.5:9b
 .venv\Scripts\python.exe main.py run --input data/examples/failed-retry-scenario.json --memory mock
 ```
 
-The demo runs two low-risk recoveries and one high-risk approval pause. Persistent demo IDs are generated automatically. Custom scenarios need unique incident IDs when stored in SQLite.
+The CLI demo runs two low-risk recoveries and one approval pause. The web dashboard exposes all 12 held-out cases, learns missing bundled history on demand, and retains verified outcomes or unresolved observations. Persistent demo IDs are generated automatically. Custom scenarios need unique incident IDs when stored in SQLite.
 
 ## Approval boundary
 
-The terminal asks for a reviewer only when `--interactive` is present. The reviewer must type `APPROVE`; otherwise the workflow stops without executing the action. Approval is bound to the incident, action, risk level, and policy rule. This prototype trusts the supplied reviewer name and does not provide user authentication.
+The terminal asks for a reviewer only when `--interactive` is present. The reviewer must type `APPROVE`; otherwise the workflow stops without executing the action. Approval is bound to the incident, action, risk level, and policy rule. High/Critical severity always requires approval, as do medium/high-risk actions. The local demo accepts reviewer names by default; deployments can configure bearer-token identities with `APPROVAL_IDENTITIES_JSON`.
 
 ## Verify and evaluate
 

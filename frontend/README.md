@@ -28,7 +28,7 @@ npm run build
 - `/incidents/:id` - investigation, evidence, policy, simulated workflow, and verification
 - `/memory` - Hindsight memory explorer with ordered outcomes and source chunks
 - `/memory/upload` - persistent session upload queue for JSON, CSV, Markdown, text/log, and PDF evidence
-- `/approvals` - medium and high risk review queue
+- `/approvals` - medium/high-risk actions and all High/Critical incidents awaiting review
 - `/evaluation` - repeated held-out evaluation at each real memory checkpoint
 
 ## API boundary
@@ -48,12 +48,13 @@ Live integration points:
 - `POST /api/ui/incidents/:incidentId/approval`
 - `GET /api/ui/overview`
 - `GET /api/ui/evaluation`
+- `POST /api/ui/evaluation/refresh`
 
 All remediation actions and observations shown by the frontend remain explicitly simulated. Uploads use the configured memory backend; Hindsight performs embeddings when that backend is active.
 
 ## Demo lifecycle
 
-The live dashboard begins with an isolated bank on the configured backend. Uploading evidence triggers a full held-out evaluation, and verified outcomes trigger another checkpoint. Accuracy, coverage, retrieval precision, and failed-fix avoidance are recomputed from actual recommendations and recalled IDs. A workflow click never awards progress, and a checkpoint may remain flat or decline. **Reset demo** rotates the dashboard to a new clean bank or database.
+The live dashboard restores its isolated memory namespace after API restarts. Uploading evidence and storing a verified outcome queue a background evaluation across all 12 held-out cases. The page polls its status and exposes **Refresh metrics** for an explicit rerun. Accuracy, coverage, retrieval precision, and failed-fix avoidance are computed from actual recommendations and recalled IDs. A workflow click never awards progress, and a checkpoint may remain flat or decline. **Reset demo** rotates to a new clean bank or database.
 
 ## Design system
 

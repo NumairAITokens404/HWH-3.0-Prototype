@@ -16,7 +16,7 @@ APPROVAL_IDENTITIES_JSON={"alice":"replace-with-a-long-random-token"}
 
 ## Dataset checkpoint
 
-The repository contains 18 synthetic historical incidents, 54 ordered outcomes, and 6 held-out regression cases across six balanced service families. Run:
+The repository contains 18 synthetic historical incidents, 54 ordered outcomes, and 12 held-out regression cases across six balanced service families. Run:
 
 ```powershell
 .venv\Scripts\python.exe -m evaluation.dataset_audit --output reports/dataset-audit.json

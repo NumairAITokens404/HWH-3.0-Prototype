@@ -23,7 +23,7 @@
 | `memory/hindsight_adapter.py`, `memory/factory.py` | Real SDK adapter and explicit mock/SQLite/Hindsight backend selection. |
 | `memory/sqlite_client.py` | Durable Docker-free local memory with transactional, idempotent writes. |
 | `memory/check_hindsight.py` | Connection and persistent write/read probe. |
-| `tests/test_hindsight_adapter.py` | 12 offline adapter and SDK contract tests. |
+| `tests/test_hindsight_adapter.py` | Offline adapter and SDK contract tests. |
 | `memory/hindsight_client.py` | Memory protocol and local in-memory implementation. |
 | `memory/memory_writer.py` | Validate datasets and seed historical records. |
 | `memory/memory_retriever.py` | Small facade that preserves complete histories. |
@@ -33,9 +33,9 @@
 | `schemas/investigation.py` | Evidence, counts, recommendation, and abstention output. |
 | `schemas/workflow.py` | Approval, simulation, execution, and recovery contracts. |
 | `data/*.json` | Historical inputs, remediation histories, and held-out labels. |
-| `tests/test_phase_one.py` | Foundation behavior: 11 tests. |
-| `tests/test_investigation.py` | Recommendation behavior: 11 tests. |
-| `tests/test_workflow.py` | Approval, execution, verification, and memory feedback: 16 tests. |
+| `tests/test_phase_one.py` | Foundation behavior and dataset separation. |
+| `tests/test_investigation.py` | Recommendation, abstention, and evidence behavior. |
+| `tests/test_workflow.py` | Approval, execution, verification, observations, and memory feedback. |
 | `llm/client.py`, `llm/prompts.py` | Bounded Ollama structured output and the evidence-only prompt. |
 | `schemas/llm.py` | Strict model proposal contract, separate from authorization. |
 | `schemas/ingestion.py`, `services/ingestion_service.py` | Upload result, failed-remediation chunks, validation, chunking, and storage orchestration. |
@@ -57,14 +57,14 @@
 - **Incident:** ID, service, severity, symptoms, environment, and optional error details, customer/transaction/job IDs, and recent change.
 - **RemediationAction:** action name, description, risk level (`LOW`, `MEDIUM`, `HIGH`), reason, and confidence between 0 and 1.
 - **Outcome:** unique outcome ID within an incident, incident ID, action, result (`SUCCESS`, `FAILED`, `PARTIAL`), optional reprocessing result, lesson, risk level, verification flag, and optional resolution time.
-- **IncidentMemory:** incident, optional root cause and recommendation, ordered outcomes, and optional final resolution.
+- **IncidentMemory:** typed experience or observation, incident, optional root cause and recommendation, ordered outcomes, related incident/workflow state, and optional final resolution.
 - **EvaluationCase:** held-out incident plus expected root cause, recommended action, relevant historical IDs, and actions to avoid before remediation. Labels are kept outside the incident input.
 
 Schemas reject unknown fields, empty required strings, invalid enum values, mismatched outcome incident IDs, duplicate outcome IDs within a record, and invalid confidence or duration values.
 
 ## Synthetic dataset
 
-There are **18 historical incidents and 6 held-out cases**, spanning:
+There are **18 historical incidents and 12 held-out cases** across six failure families. Each family has one primary test case and one additional held-out case, spanning:
 
 1. Customer PIN / master-data inconsistency.
 2. Payment provider routing failure.
@@ -73,7 +73,7 @@ There are **18 historical incidents and 6 held-out cases**, spanning:
 5. Catalog cache inconsistency.
 6. Downstream service timeout.
 
-Each family has three historical incidents and one held-out case. Historical records contain an initial failed retry, a successful remediation, and a successful retry after remediation: **54 ordered action outcomes** in total. All incidents, identifiers, outcomes, and durations are synthetic fixtures, not observed production results.
+Each family has three historical incidents and two held-out cases. Historical records contain an initial failed retry, a successful remediation, and a successful retry after remediation: **54 ordered action outcomes** in total. All incidents, identifiers, outcomes, and durations are synthetic fixtures, not observed production results.
 
 `incidents.json` contains historical inputs. `remediation_history.json` pairs those inputs with root causes, actions, and resolutions. `test_incidents.json` contains evaluation inputs and labels and is never passed to historical seeding. The loader checks matching IDs/content, valid references, and separation between history and held-out inputs.
 

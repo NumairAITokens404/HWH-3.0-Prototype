@@ -1,5 +1,7 @@
 # Phase 1: data and memory foundations
 
+> Historical checkpoint: this page describes the Phase 1 implementation. See the [current architecture](architecture.md) and [project overview](../README.md) for the completed prototype.
+
 [Documentation index](README.md) | [Next: investigation](phase-2-investigation.md)
 
 **Status: implemented.**
@@ -8,7 +10,7 @@
 
 1. Created the Python package structure and placeholders for later components.
 2. Added Pydantic incident, remediation, and outcome schemas to validate data at module boundaries.
-3. Created 18 historical incidents, 6 held-out cases, and 54 ordered action outcomes across six problem families.
+3. Created 18 historical incidents, the original 6 held-out cases, and 54 ordered action outcomes across six problem families. The current dataset adds 6 more held-out cases.
 4. Defined the `HindsightClient` protocol and an in-memory mock with deterministic retrieval.
 5. Added dataset validation, historical seeding, and outcome write/read operations.
 6. Tested schema constraints, retrieval, duplicate handling, isolation, and dataset references.

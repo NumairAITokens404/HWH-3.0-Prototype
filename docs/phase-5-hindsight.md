@@ -1,8 +1,10 @@
 # Phase 5A: real Hindsight adapter
 
+> Historical checkpoint: this page records the adapter milestone. The current dashboard uses real Hindsight retain/recall and persists its active bank across API restarts; see [Hindsight setup](hindsight-setup.md).
+
 [Documentation index](README.md) | [Setup](hindsight-setup.md)
 
-**Status: adapter implemented and tested offline. Live server persistence and recall are not yet verified.** No service was configured during this implementation. LLM investigator integration remains a later part of Phase 5.
+**Phase 5A checkpoint status:** the adapter was implemented and tested offline; no live service was configured during that milestone. Live retention, recall, outcome feedback, and restart persistence are now covered by `tests/live_hindsight_learning.py`, and guarded LLM investigation was added in Phase 5B.
 
 ## Implementation
 

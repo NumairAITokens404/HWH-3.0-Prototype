@@ -1,5 +1,7 @@
 # Phase 2: investigation baseline
 
+> Historical checkpoint: this page describes the Phase 2 rule-based investigator. The current prototype adds guarded Ollama synthesis, Hindsight feedback, and durable workflow state; see the [current architecture](architecture.md).
+
 [Documentation index](README.md) | [Previous: foundations](phase-1-foundations.md) | [Next: remaining phases](roadmap.md)
 
 **Status: deterministic baseline and guarded local LLM reasoning implemented.** See [Phase 5B](phase-5-llm.md) for the model layer.
@@ -29,4 +31,4 @@ These checks establish behavior on the synthetic fixtures; they do not measure g
 
 ## Boundaries
 
-The current investigator is rule-based. It does not call an LLM, authorize execution, perform remediation, or write inferred outcomes into memory. See the [demo output](getting-started.md#current-demonstration).
+At this checkpoint, the investigator was rule-based. It did not call an LLM, authorize execution, perform remediation, or write inferred outcomes into memory. See the [current architecture](architecture.md) for the completed path.

@@ -13,7 +13,7 @@ An evidence-backed incident response platform powered by Hindsight memory, guard
 ![React](https://img.shields.io/badge/UI-React%20%2B%20TypeScript-149ECA?logo=react&logoColor=white)
 ![Hindsight](https://img.shields.io/badge/Memory-Hindsight-7C3AED)
 ![Ollama](https://img.shields.io/badge/AI-Ollama%20%2B%20Qwen-111827)
-![Tests](https://img.shields.io/badge/Tests-112%20passing-16A34A)
+![Tests](https://img.shields.io/badge/Tests-131%20passing-16A34A)
 
 </div>
 
@@ -61,7 +61,8 @@ New incident ──> investigator <─────────────┘
         Python schema, citation, and risk checks
                        │
           ┌────────────┴────────────┐
-     low-risk action        medium/high-risk action
+ low-risk action on a       medium/high-risk action,
+ Low/Medium incident        or High/Critical incident
        auto execute             human approval
           └────────────┬────────────┘
                        │
@@ -118,7 +119,7 @@ For a short judge demo:
 - **Reasoning:** deterministic baseline plus guarded Ollama synthesis using `qwen3.5:9b`.
 - **Workflow safety:** durable approval state, audit events, execution checkpoints, and at-most-once connector receipts.
 - **Dataset:** 18 historical incidents, 54 ordered remediation outcomes, and 12 held-out cases across six failure families.
-- **Validation:** 104 Python tests and 8 frontend tests at this checkpoint.
+- **Validation:** 116 Python tests and 15 frontend tests passing at this checkpoint.
 
 ## Severity and action risk
 

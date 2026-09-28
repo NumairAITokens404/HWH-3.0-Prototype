@@ -15,9 +15,9 @@
 9. **Sandbox connectors:** explicit execution modes, fixed action routes, bearer authentication, durable at-most-once receipts, and independent status verification.
 10. **Checkpoint hardening:** connector receipt reconciliation, optional authenticated reviewer identities, a reproducible dataset audit, and non-root container execution.
 
-## Next live integrations
+## Next production-oriented work
 
-1. Connect the existing adapter to a running Hindsight service and verify uploaded-document embeddings, cross-process persistence, and semantic retrieval.
+1. Exercise the verified Hindsight adapter under larger concurrent ingestion and recall workloads.
 2. Add OCR only if scanned postmortems become a required input source.
 3. Replace synthetic connector and reviewer credentials with the deployment secret manager before connecting production services.
 4. Acquire and de-identify a larger incident dataset with blinded labels and production-relevant retrieval judgments.

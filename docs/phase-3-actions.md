@@ -1,5 +1,7 @@
 # Phase 3: action policy and simulated remediation
 
+> Historical checkpoint: this page describes the Phase 3 action boundary. The current policy also requires approval for every High/Critical incident; see the [current architecture](architecture.md).
+
 [Documentation index](README.md) | [Next: recovery](phase-4-recovery.md)
 
 **Status: implemented for local simulation.**

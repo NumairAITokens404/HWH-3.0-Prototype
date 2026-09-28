@@ -8,7 +8,7 @@ The local demo can use SQLite and Ollama without Hindsight. The following steps 
 
 ### Local Docker
 
-Install/start Docker Desktop with Linux containers. Configure the server's LLM provider and key using the official [installation guide](https://hindsight.vectorize.io/developer/installation) and [configuration reference](https://hindsight.vectorize.io/developer/configuration). The server needs a model for extraction even though this project's investigator is still rule-based.
+Install/start Docker Desktop with Linux containers. Configure the server's LLM provider and key using the official [installation guide](https://hindsight.vectorize.io/developer/installation) and [configuration reference](https://hindsight.vectorize.io/developer/configuration). Hindsight uses a model for memory extraction. The separate incident investigator uses a deterministic evidence baseline with guarded Ollama synthesis when configured.
 
 For a fully local setup, Hindsight runs in Docker and calls Ollama on the Windows host. This needs no API key. Pull the lightweight extraction model first:
 
@@ -107,4 +107,4 @@ $env:MEMORY_BACKEND = "mock"
 .venv\Scripts\python.exe main.py
 ```
 
-No server error silently changes this setting. Use one writer per bank for this prototype. Workflow approvals and duplicate-run caches remain in memory even when incident history is persistent.
+No server error silently changes this setting. Use one writer per bank for this prototype. The dashboard's active bank ID, upload index, pending approvals, completed workflows, and evaluation state persist through `WORKFLOW_DB_PATH`; Hindsight remains the source of incident evidence and learned outcomes.

@@ -1,5 +1,7 @@
 # Phase 4: recovery verification and memory feedback
 
+> Historical checkpoint: this page describes the Phase 4 recovery loop. See the [current architecture](architecture.md) for the dashboard, Hindsight observations, and persistent evaluation flow.
+
 [Documentation index](README.md) | [Remaining phases](roadmap.md)
 
 **Status: implemented for local simulation.**
@@ -27,4 +29,4 @@ New outcome records preserve the action order and observed failures. The investi
 
 The full suite has **38 passing tests**, including 16 workflow tests. These cover approved execution, failures, partial recovery, tool success without recovery, repeat calls, write failures, and recalling a newly recorded incident. Tests use explicit synthetic scenario truth separate from the investigator's inputs.
 
-The feedback demonstration proves that new records are recalled. It does not establish an accuracy or recovery-time improvement. State, approvals, and duplicate protection are synchronous and in-process; real Hindsight persistence, authentication, distributed execution, and measured evaluation are not implemented.
+At this checkpoint, the feedback demonstration proved that new records were recalled but did not establish an accuracy or recovery-time improvement. State, approvals, and duplicate protection were synchronous and in-process. Later phases added real Hindsight persistence, optional reviewer authentication, durable workflow state, and measured evaluation.

@@ -1,5 +1,7 @@
 # Phase 5B: local LLM investigation
 
+> Historical checkpoint: this page records the local-model milestone. See the [current architecture](architecture.md) for the completed Hindsight-centered workflow and durable approval state.
+
 [Documentation index](README.md) | [Local setup](local-model.md)
 
 ## Implemented
@@ -35,4 +37,4 @@ The guarded policy intentionally limits model autonomy for this prototype. Raw p
 
 ## Limits
 
-The model does not execute real operations. SQLite retrieval uses the mock's lexical ranking; genuine Hindsight semantic retrieval still requires a running Hindsight service. The workflow approval cache is in-process. Prompt instructions reduce misuse of incident text but cannot guarantee an LLM's interpretation is correct; execution checks are enforced in Python.
+At this checkpoint, the workflow approval cache was in-process. The current dashboard persists approvals and workflow checkpoints through `WORKFLOW_DB_PATH`. The model still does not execute operations; prompt instructions guide interpretation while Python enforces citations, policy, and execution checks.

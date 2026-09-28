@@ -6,7 +6,7 @@ The FastAPI layer exposes the existing investigation and simulated workflow serv
 
 The React frontend selects the live adapter when `frontend/.env` contains `VITE_API_MODE=http`. Its dashboard routes use the `/api/ui/*` facade below; core automation remains in the same runtime and policy services used by the CLI and typed API.
 
-The UI facade starts with an empty session projection. Uploading history populates the incident queue and memory explorer. Evaluation progress remains at zero until workflows finish. `POST /api/ui/reset` clears this projection, its upload list, and simulated UI workflows without deleting durable backend records.
+The UI facade restores its dashboard state from `WORKFLOW_DB_PATH`, including the active memory namespace, upload index, pending reviews, completed workflows, and evaluation history. A first run starts with a clean namespace. `POST /api/ui/reset` deliberately rotates to another clean namespace and clears the saved dashboard projection.
 
 ## Start locally
 
@@ -24,7 +24,7 @@ The root URL `http://127.0.0.1:8000/` returns a small service status response. U
 
 | Method and path | Purpose |
 | --- | --- |
-| `GET /api/health` | Report configured memory/model providers and the simulation boundary. |
+| `GET /health`, `GET /api/health` | Report configured memory/model providers and the simulation boundary. |
 | `GET /api/capabilities` | Tell the UI which integrations are active. |
 | `POST /api/memory/uploads` | Validate and ingest JSON, CSV, Markdown, text/log, or text-based PDF incident history. |
 | `GET /api/memory/failed-remediations` | Search failed and partial remediation chunks. |
@@ -38,12 +38,13 @@ The root URL `http://127.0.0.1:8000/` returns a small service status response. U
 | `POST /api/ui/incidents/{incident_id}/workflow` | Run or resume the server-owned demonstration case. |
 | `POST /api/ui/incidents/{incident_id}/approval` | Submit the bound UI approval decision. |
 | `GET /api/ui/memory` | Search complete memory records for the memory explorer. |
-| `GET /api/ui/evaluation` | Run and return the deterministic checkpoint comparison. |
+| `GET /api/ui/evaluation` | Return the last completed metrics and current background-evaluation status. |
+| `POST /api/ui/evaluation/refresh` | Queue a fresh evaluation of all 12 held-out cases. |
 | `GET /api/ui/uploads` | List successfully uploaded files retained in the dashboard session. |
 | `DELETE /api/ui/uploads/{upload_id}` | Remove one upload and rebuild the session projection from remaining files. |
 | `POST /api/ui/reset` | Reset the dashboard learning demonstration. |
 
-The API generates demo incident IDs. The browser never submits `required_action`, health truth, or expected evaluation labels. Low-risk scenarios finish immediately. High-risk scenarios return `HUMAN_APPROVAL_REQUIRED` and a `decision.request_id` that must be returned with the reviewer decision.
+The API owns the demo cases and simulator truth. The browser never submits `required_action`, health truth, or expected evaluation labels. Only low-risk actions on Low/Medium incidents can execute automatically. Medium/high-risk actions and all High/Critical incidents return `HUMAN_APPROVAL_REQUIRED` with a `decision.request_id` that must accompany the reviewer decision.
 
 ## Approval lifecycle
 
@@ -51,6 +52,7 @@ The API generates demo incident IDs. The browser never submits `required_action`
 - A bound rejection returns `DENIED` and permanently closes the run.
 - A successful or denied run is removed from the active registry while its checkpoint and audit history remain durable.
 - Pending approvals survive API restarts through `WORKFLOW_DB_PATH`; the original investigation is restored without another model call.
+- Completed workflow state, dashboard memory namespace, uploads, and evaluation history also survive API restarts.
 - An approved action is checkpointed as `EXECUTING` before it runs. Ambiguous interrupted executions require reconciliation and are never automatically repeated.
 - With no approval credentials configured, reviewer names remain trusted local demo inputs.
 - To authenticate reviewers, set `APPROVAL_IDENTITIES_JSON` to a JSON object such as `{"alice":"a-long-random-token"}`. Send that token as `Authorization: Bearer ...`; the server derives and audits `alice` and rejects a conflicting body reviewer.
