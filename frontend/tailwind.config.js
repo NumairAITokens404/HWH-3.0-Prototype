@@ -3,13 +3,14 @@ export default {
   content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
   theme: {
     extend: {
+      fontFamily: { sans: ['DM Sans', 'sans-serif'] },
       colors: {
-        navy: { 950: '#101828', 900: '#172033', 800: '#1D2939', 700: '#344054' },
-        ink: '#172033',
-        canvas: '#F6F7F9',
-        muted: '#667085',
-        faint: '#98A2B3',
-        line: '#E4E7EC',
+        navy: { 950: '#1c1a26', 900: '#252131', 800: '#302940', 700: '#493c61' },
+        ink: 'var(--ink)',
+        canvas: 'var(--canvas)',
+        muted: 'var(--muted)',
+        faint: 'var(--faint)',
+        line: 'var(--line)',
         memory: '#6941C6',
       },
       boxShadow: { card: '0 1px 2px rgba(16, 24, 40, 0.04)' },
