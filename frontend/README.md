@@ -10,7 +10,7 @@ npm install
 npm run dev
 ```
 
-Copy `.env.example` to `.env`, start the Python API on port 8000, and open the URL printed by Vite. `VITE_API_MODE=http` connects the console to FastAPI. Set it to `mock` for a fixture-only UI demonstration.
+Copy `.env.example` to `.env`, start the Python API on port 8000, and open the URL printed by Vite. The default `VITE_API_MODE=http` connects the console to FastAPI. The fixture adapter exists only for isolated component tests and is not the product demo path.
 
 ## Validate
 
@@ -29,11 +29,11 @@ npm run build
 - `/memory` - Hindsight memory explorer with ordered outcomes and source chunks
 - `/memory/upload` - persistent session upload queue for JSON, CSV, Markdown, text/log, and PDF evidence
 - `/approvals` - medium and high risk review queue
-- `/evaluation` - synthetic before and after memory comparison
+- `/evaluation` - repeated held-out evaluation at each real memory checkpoint
 
 ## API boundary
 
-Pages use the `IncidentApi` interface in `src/api/client.ts`. `src/api/httpApi.ts` maps it to FastAPI, while `src/api/mockApi.ts` remains available for an offline UI demonstration.
+Pages use the `IncidentApi` interface in `src/api/client.ts`. `src/api/httpApi.ts` maps it to FastAPI. `src/api/mockApi.ts` is limited to isolated frontend tests.
 
 Live integration points:
 
@@ -53,7 +53,7 @@ All remediation actions and observations shown by the frontend remain explicitly
 
 ## Demo lifecycle
 
-The live dashboard begins with an empty session. The upload page offers starter, expanded, full, and embedded-log demo bundles. Uploaded files remain listed across navigation and can be removed from the session. Uploading evidence populates the incident queue but leaves verified benchmark progress at zero. The overview meter and evaluation graph advance only when incident workflows complete; approval-gated actions advance after review and verified execution. **Reset demo** is available from both the overview and incidents pages.
+The live dashboard begins with an isolated bank on the configured backend. Uploading evidence triggers a full held-out evaluation, and verified outcomes trigger another checkpoint. Accuracy, coverage, retrieval precision, and failed-fix avoidance are recomputed from actual recommendations and recalled IDs. A workflow click never awards progress, and a checkpoint may remain flat or decline. **Reset demo** rotates the dashboard to a new clean bank or database.
 
 ## Design system
 

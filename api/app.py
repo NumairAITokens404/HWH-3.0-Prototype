@@ -176,25 +176,31 @@ def create_app(settings: Settings | None = None, runtime: ApiRuntime | None = No
                 "pendingApprovals": sum(item["status"] == "APPROVAL_REQUIRED" for item in incidents),
                 "memoryRecords": len(runtime.memory_records()),
                 "failedFixesAvoided": sum(len(record.outcomes) > 0 for record in runtime.memory_records()),
-                "learningCompleted": progress["completed"],
+                "learningCompleted": runtime.ui_completed,
                 "learningTotal": len(runtime.cases),
                 "learningScore": progress["score"],
                 "recent": incidents[:5]}
 
     @app.get("/api/ui/evaluation", tags=["ui"])
     def ui_evaluation():
-        total = len(runtime.cases)
-        progress = runtime.evaluation_progress()
-        completed = progress[-1]["completed"]
-        correct = progress[-1]["correct"]
+        report = runtime.evaluation_report()
+        baseline, current = report["baseline"], report["current"]
+        def metric(name: str, key: str, suffix: str = "%"):
+            before, after = baseline[key], current[key]
+            return {"name": name, "withoutMemory": f"{before}{suffix}",
+                    "withMemory": f"{after}{suffix}", "improved": after > before,
+                    "delta": round(after - before, 1)}
         return {"metrics": [
-            {"name": "Verified correct actions", "withoutMemory": f"0 / {total}",
-             "withMemory": f"{correct} / {total}", "improved": correct > 0},
-            {"name": "Completed incident coverage", "withoutMemory": "0%",
-             "withMemory": f"{completed / total:.0%}", "improved": completed > 0},
-            {"name": "Memory records available", "withoutMemory": "0",
-             "withMemory": str(len(runtime.memory_records())), "improved": bool(runtime.memory_records())},
-        ], "challenges": [], "progress": progress, "completed": completed, "total": total}
+            metric("Held-out action accuracy", "score"),
+            metric("Recommendation coverage", "coverage"),
+            metric("Retrieval precision", "retrievalPrecision"),
+            metric("Failed-fix avoidance", "failedFixAvoidance"),
+        ], "progress": report["progress"], "completed": report["completed"],
+            "total": report["total"], "backend": report["backend"], "bank": report["bank"],
+            "methodology": ("The same held-out incidents are rerun at every checkpoint. "
+                            "Scores come from accepted recommendations and recalled source IDs; "
+                            "workflow clicks do not award points."),
+            "cases": current["rows"]}
 
     @app.get("/api/ui/uploads", tags=["ui"])
     def ui_uploads():

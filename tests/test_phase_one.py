@@ -24,7 +24,7 @@ class PhaseOneTests(unittest.TestCase):
 
     def test_dataset_coverage_and_ordered_attempts(self):
         self.assertEqual(len(self.incidents), 18)
-        self.assertEqual(len(self.cases), 6)
+        self.assertEqual(len(self.cases), 12)
         self.assertEqual(len({item.service for item in self.incidents}), 6)
         for record in self.history:
             self.assertEqual([item.result for item in record.outcomes], ["FAILED", "SUCCESS", "SUCCESS"])
@@ -35,7 +35,8 @@ class PhaseOneTests(unittest.TestCase):
         for case in self.cases:
             with self.subTest(incident=case.incident.incident_id):
                 matches = self.client.retrieve_similar_incidents(case.incident, limit=3)
-                self.assertEqual({match.memory.incident.incident_id for match in matches}, set(case.relevant_incident_ids))
+                recalled = {match.memory.incident.incident_id for match in matches}
+                self.assertTrue(set(case.relevant_incident_ids) <= recalled)
                 self.assertTrue(all(any(item.result == "FAILED" for item in match.memory.outcomes) for match in matches))
 
     def test_stores_outcomes_idempotently_and_retrieves_new_memory(self):

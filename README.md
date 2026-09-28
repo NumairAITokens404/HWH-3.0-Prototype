@@ -42,7 +42,7 @@ The model proposes and explains. Python validates citations, classifies action r
 | **Ordered evidence** | The system knows that a retry failed *before* a fix and succeeded *after* it. |
 | **Safe action boundary** | Low-risk actions may run automatically; riskier actions pause for a named human decision. |
 | **Recovery proof** | A successful tool response is insufficient. Service health and the original operation must recover. |
-| **Visible learning** | The dashboard begins empty and advances its evaluation only as verified workflows complete. |
+| **Measured learning** | The same held-out cases are rerun at every evidence and outcome checkpoint; the curve may rise, stay flat, or fall. |
 | **Local-first stack** | Ollama and SQLite support a private demo without a paid model API; Hindsight is the primary memory path. |
 
 ## Architecture
@@ -86,11 +86,11 @@ See [architecture and trust boundaries](docs/architecture.md) for the component-
 
 The UI is designed to make the memory effect visible:
 
-1. **Reset demo** starts with no session incidents, uploads, or evaluation score.
-2. **Upload evidence** from a file or one of four demo bundles. Valid records appear in the incident queue.
+1. **Reset demo** rotates to a clean dashboard bank on the configured memory backend.
+2. **Upload evidence** from a file or one of four demo bundles. With `MEMORY_BACKEND=hindsight`, Hindsight retains, embeds, and recalls that evidence.
 3. **Open an incident** to inspect the cited history, avoided failed fix, confidence, and policy decision.
 4. **Run the workflow.** Approval-gated actions appear in Approvals and the notification center.
-5. **Verify the outcome.** Only a completed workflow advances the learning graph and evaluation score.
+5. **Inspect the evaluation.** Every checkpoint reruns the complete held-out set. Workflow clicks never award points.
 
 The Memory Explorer shows the evidence accumulated in the current session. Uploaded files remain visible while the API is running and can be deleted individually.
 
@@ -111,11 +111,11 @@ For a short judge demo:
 
 - **Web platform:** React, TypeScript, Vite, React Query, and a typed FastAPI client.
 - **API:** incident queue, investigations, workflow execution, approvals, evaluation, reset, upload, and deletion endpoints.
-- **Memory:** Hindsight SDK adapter, durable SQLite alternative, and deterministic in-memory fixtures.
+- **Memory:** live Hindsight banks for dashboard ingestion, recall, and outcome feedback, with SQLite as a development backend.
 - **Ingestion:** validated JSON, CSV, Markdown, logs, and text PDFs with bounded failed-remediation chunks.
 - **Reasoning:** deterministic baseline plus guarded Ollama synthesis using `qwen3.5:9b`.
 - **Workflow safety:** durable approval state, audit events, execution checkpoints, and at-most-once connector receipts.
-- **Dataset:** 18 historical incidents, 54 ordered remediation outcomes, and 6 held-out cases across six failure families.
+- **Dataset:** 18 historical incidents, 54 ordered remediation outcomes, and 12 held-out cases across six failure families.
 - **Validation:** 104 Python tests and 8 frontend tests at this checkpoint.
 
 ## Severity and action risk
@@ -205,14 +205,14 @@ Docker is optional for local development. The compose configuration preserves ru
 ## CLI and evaluation
 
 ```powershell
-# Fast offline rules demo
-.venv\Scripts\python.exe main.py --engine rules --memory mock
+# Deterministic development run with persistent local memory
+.venv\Scripts\python.exe main.py --engine rules --memory sqlite
 
 # Read-only investigation
 .venv\Scripts\python.exe main.py investigate --input data/examples/incident.json
 
 # Approval-gated workflow
-.venv\Scripts\python.exe main.py run --input data/examples/high-risk-scenario.json --memory mock --interactive
+.venv\Scripts\python.exe main.py run --input data/examples/high-risk-scenario.json --memory hindsight --interactive
 
 # Reproduce the local-model evaluation
 .venv\Scripts\python.exe -m evaluation.evaluate_memory --engine ollama --output reports/local-ollama.json
@@ -221,14 +221,9 @@ Docker is optional for local development. The compose configuration preserves ru
 .venv\Scripts\python.exe -m evaluation.dataset_audit --output reports/dataset-audit.json
 ```
 
-### Measured synthetic result
+### Measured learning result
 
-| Evaluation | Raw action accuracy | Accepted accuracy | Accepted coverage | Failed actions repeated |
-| --- | ---: | ---: | ---: | ---: |
-| Without incident memory | 1/6 | 0/6 | 0/6 | 0 |
-| With incident memory | 6/6 | 6/6 | 6/6 | 0 |
-
-Unknown errors, missing errors, and conflicting history all returned **insufficient evidence** and executed nothing. These small synthetic fixtures demonstrate workflow behavior and safety gates; they do not establish production accuracy or recovery-time savings.
+The dashboard is the authoritative comparison. It reruns all 12 held-out incidents against an empty bank and after every evidence or verified-outcome checkpoint. It reports action accuracy, recommendation coverage, retrieval precision, failed-fix avoidance, the exact recommendation for each case, and the recalled source IDs. No fixed improvement percentage is claimed in this README because results depend on the evidence actually uploaded and the configured model.
 
 ## Tests
 

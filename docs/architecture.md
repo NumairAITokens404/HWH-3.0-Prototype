@@ -16,6 +16,12 @@
 8. Outcome Verification checks whether the underlying problem and failed operation recovered.
 9. Resolved, failed, and partial outcomes are written to Hindsight for later investigations.
 
+The dashboard does not maintain a parallel in-memory copy. It creates an isolated namespace on the configured backend, writes uploads and workflow outcomes there, and runs every UI investigation against that same namespace. With `MEMORY_BACKEND=hindsight`, the namespace is a real Hindsight bank. Reset rotates to a clean bank instead of clearing or impersonating Hindsight.
+
+## Measured learning
+
+The dashboard reruns the complete held-out set against the evidence available at each checkpoint: empty memory, every successful upload, and every verified workflow outcome. It records action accuracy, recommendation coverage, retrieval precision, failed-fix avoidance, per-case recommendations, and recalled source IDs. Expected labels remain outside prompts and memory records. Checkpoint values are measured independently, so the curve can stay flat or decline.
+
 Human approval authorizes a remediation; it does not itself fix the incident. Approved actions still need execution before reprocessing. This makes the approval branch in the supplied architecture explicit.
 
 ## Roles and current implementation

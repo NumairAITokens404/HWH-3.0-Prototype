@@ -1,6 +1,7 @@
 """HTTP contracts, workflow state, validation, and policy boundaries."""
 
 from pathlib import Path
+import tempfile
 import unittest
 
 from fastapi.testclient import TestClient
@@ -16,9 +17,18 @@ ROOT = Path(__file__).resolve().parents[1]
 
 class ApiTests(unittest.TestCase):
     def setUp(self):
-        self.settings = Settings(data_dir=ROOT / "data", api_cors_origins=("http://localhost:5173",))
+        self._temp = tempfile.TemporaryDirectory(dir=ROOT, prefix=".api-live-test-")
+        root = Path(self._temp.name)
+        self.settings = Settings(data_dir=ROOT / "data", memory_backend="sqlite",
+                                 sqlite_path=root / "memory.sqlite3",
+                                 workflow_db_path=root / "workflows.sqlite3",
+                                 api_cors_origins=("http://localhost:5173",))
         self.runtime = ApiRuntime(self.settings)
         self.client = TestClient(create_app(self.settings, self.runtime))
+
+    def tearDown(self):
+        self.runtime.workflow_store.close()
+        self._temp.cleanup()
 
     def upload_demo_history(self):
         return self.client.post("/api/memory/uploads", files={
@@ -32,10 +42,10 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(root.json()["health"], "/api/health")
         health = self.client.get("/api/health")
         self.assertEqual(health.status_code, 200)
-        self.assertEqual(health.json()["memory_backend"], "mock")
+        self.assertEqual(health.json()["memory_backend"], "sqlite")
         self.assertTrue(health.json()["simulated_actions"])
         capabilities = self.client.get("/api/capabilities").json()
-        self.assertFalse(capabilities["persistent_memory"])
+        self.assertTrue(capabilities["persistent_memory"])
         self.assertTrue(capabilities["file_ingestion"])
         self.assertEqual(capabilities["embedding_provider"], "none")
         self.assertFalse(capabilities["authenticated_approvals"])
@@ -74,6 +84,7 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(small.post("/api/memory/uploads",
                                    files={"file": ("large.json", b"x" * 1025, "application/json")}).status_code, 413)
         _, history, _ = load_datasets(ROOT / "data")
+        self.assertEqual(self.upload_demo_history().status_code, 201)
         changed = history[0].model_copy(update={"root_cause": "conflicting cause"})
         conflict = self.client.post("/api/memory/uploads",
                                     files={"file": ("history.json", changed.model_dump_json(), "application/json")})
@@ -165,10 +176,13 @@ class ApiTests(unittest.TestCase):
 
     def test_runtime_capacity_is_bounded(self):
         runtime = ApiRuntime(self.settings, max_active_runs=1)
-        client = TestClient(create_app(self.settings, runtime))
-        self.assertEqual(client.post("/api/demo/workflows", json={"scenario": "high-risk-approval"}).status_code, 200)
-        response = client.post("/api/demo/workflows", json={"scenario": "high-risk-approval"})
-        self.assertEqual(response.status_code, 503)
+        try:
+            client = TestClient(create_app(self.settings, runtime))
+            self.assertEqual(client.post("/api/demo/workflows", json={"scenario": "high-risk-approval"}).status_code, 200)
+            response = client.post("/api/demo/workflows", json={"scenario": "high-risk-approval"})
+            self.assertEqual(response.status_code, 503)
+        finally:
+            runtime.workflow_store.close()
 
     def test_ui_contract_supports_live_frontend_workflow(self):
         incidents = self.client.get("/api/ui/incidents")
@@ -177,7 +191,7 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(self.client.get("/api/ui/memory").json(), [])
         self.assertEqual(self.upload_demo_history().status_code, 201)
         incidents = self.client.get("/api/ui/incidents")
-        self.assertEqual(len(incidents.json()), 6)
+        self.assertEqual(len(incidents.json()), len(self.runtime.cases))
         detail = self.client.get("/api/ui/incidents/TEST-001")
         self.assertEqual(detail.status_code, 200)
         self.assertEqual(detail.json()["investigation"]["status"], "RECOMMENDATION_READY")
@@ -205,20 +219,21 @@ class ApiTests(unittest.TestCase):
 
     def test_ui_memory_and_evaluation_are_live(self):
         before = self.client.get("/api/ui/evaluation").json()
-        self.assertEqual(before["metrics"][0]["withMemory"], "0 / 6")
+        self.assertEqual(before["metrics"][0]["withMemory"], "0.0%")
         self.assertEqual(self.upload_demo_history().status_code, 201)
         memory = self.client.get("/api/ui/memory", params={"service": "queue-service", "result": "FAILED"})
         self.assertEqual(memory.status_code, 200)
         self.assertEqual(len(memory.json()), 3)
         evaluation = self.client.get("/api/ui/evaluation")
         self.assertEqual(evaluation.status_code, 200)
-        self.assertEqual(evaluation.json()["metrics"][0]["withMemory"], "0 / 6")
-        self.assertEqual(evaluation.json()["progress"], [{"step": 0, "label": "Start", "completed": 0,
-                                                           "correct": 0, "score": 0.0}])
+        self.assertGreater(float(evaluation.json()["metrics"][0]["withMemory"].rstrip("%")), 0)
+        self.assertEqual(evaluation.json()["backend"], "sqlite")
+        self.assertEqual(evaluation.json()["progress"][0]["label"], "Empty memory")
+        self.assertEqual(evaluation.json()["progress"][-1]["label"], "Uploaded remediation_history.json")
         self.assertEqual(self.client.post("/api/ui/incidents/TEST-001/workflow").status_code, 200)
         after_workflow = self.client.get("/api/ui/evaluation").json()
-        self.assertEqual(after_workflow["metrics"][0]["withMemory"], "1 / 6")
-        self.assertEqual(after_workflow["progress"][-1]["score"], 16.7)
+        self.assertEqual(after_workflow["progress"][-1]["label"], "Verified TEST-001")
+        self.assertEqual(len(after_workflow["cases"]), len(self.runtime.cases))
         self.assertEqual(self.client.post("/api/ui/reset").json()["status"], "RESET")
         self.assertEqual(self.client.get("/api/ui/incidents").json(), [])
 

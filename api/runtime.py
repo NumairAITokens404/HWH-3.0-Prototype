@@ -9,7 +9,6 @@ from api.models import ApprovalSubmission, DemoScenarioInfo, DemoScenarioName
 from config import Settings
 from llm.client import create_llm
 from memory.factory import create_memory_client
-from memory.hindsight_client import MockHindsightClient
 from memory.memory_writer import load_datasets, seed_memory
 from schemas.incident import Incident
 from schemas.ingestion import FailedRemediationSearchResult, IngestionResult
@@ -52,15 +51,16 @@ class ApiRuntime:
         self.history = history
         self.memory = create_memory_client(settings)
         seed_memory(self.memory, history)
-        # The dashboard starts as a clean learning demonstration. Uploads are
-        # mirrored here after reaching the configured backend; UI workflow
-        # outcomes remain session-only so earlier demos do not prepopulate it.
-        self.ui_memory = MockHindsightClient()
+        # The dashboard uses the configured backend in its own bank/database.
+        # A reset rotates the namespace instead of pretending to erase Hindsight.
+        self._ui_session = uuid4().hex[:12]
+        self.ui_memory = create_memory_client(settings, f"dashboard-{self._ui_session}")
         self._ui_source_names: dict[str, str] = {}
         self._ui_uploads: dict[str, dict] = {}
         self._ui_runs: dict[str, _Run] = {}
         self._ui_results: dict[str, WorkflowResult] = {}
         self._ui_completion_order: list[str] = []
+        self._evaluation_points: list[dict] = []
         self.llm = create_llm(settings)
         self.max_active_runs = max_active_runs
         self._runs: dict[str, _Run] = {}
@@ -136,8 +136,10 @@ class ApiRuntime:
 
     def ingest(self, content: bytes, filename: str) -> IngestionResult:
         with self._lock:
-            result = ingest_incident_history(content, filename, self.memory, self.settings.memory_backend)
-            ingest_incident_history(content, filename, self.ui_memory, "ui-session")
+            if not self._evaluation_points:
+                self._capture_evaluation("Empty memory")
+            result = ingest_incident_history(content, filename, self.ui_memory,
+                                             self.settings.memory_backend)
             self._ui_source_names.update({incident_id: filename for incident_id in result.incident_ids})
             upload_id = "upload-" + uuid4().hex[:12]
             self._ui_uploads[upload_id] = {
@@ -149,6 +151,7 @@ class ApiRuntime:
                 "incidentIds": list(result.incident_ids), "content": bytes(content),
                 "createdAt": datetime.now(timezone.utc).isoformat(),
             }
+            self._capture_evaluation(f"Uploaded {result.source_filename}")
             return result.model_copy(update={"upload_id": upload_id})
 
     def uploads(self) -> list[dict]:
@@ -161,16 +164,20 @@ class ApiRuntime:
             if self._ui_uploads.pop(upload_id, None) is None:
                 raise KeyError("Unknown upload")
             uploads = list(self._ui_uploads.values())
-            self.ui_memory = MockHindsightClient()
+            self._ui_session = uuid4().hex[:12]
+            self.ui_memory = create_memory_client(self.settings, f"dashboard-{self._ui_session}")
             self._ui_source_names.clear()
             self._ui_runs.clear()
             self._ui_results.clear()
             self._ui_completion_order.clear()
+            self._evaluation_points.clear()
+            self._capture_evaluation("Empty memory")
             for upload in uploads:
                 result = ingest_incident_history(upload["content"], upload["fileName"],
-                                                 self.ui_memory, "ui-session")
+                                                 self.ui_memory, self.settings.memory_backend)
                 self._ui_source_names.update({incident_id: upload["fileName"]
                                               for incident_id in result.incident_ids})
+            self._capture_evaluation("Uploads rebuilt")
 
     def memory_records(self):
         with self._lock:
@@ -184,12 +191,14 @@ class ApiRuntime:
 
     def reset_ui_session(self) -> None:
         with self._lock:
-            self.ui_memory = MockHindsightClient()
+            self._ui_session = uuid4().hex[:12]
+            self.ui_memory = create_memory_client(self.settings, f"dashboard-{self._ui_session}")
             self._ui_source_names.clear()
             self._ui_uploads.clear()
             self._ui_runs.clear()
             self._ui_results.clear()
             self._ui_completion_order.clear()
+            self._evaluation_points.clear()
 
     @property
     def ui_ready(self) -> bool:
@@ -225,6 +234,7 @@ class ApiRuntime:
             self._ui_results[incident_id] = result.model_copy(deep=True)
             if result.status in {"SUCCESS", "FAILED", "PARTIAL"}:
                 self._ui_completion_order.append(incident_id)
+                self._capture_evaluation(f"Verified {incident_id}")
             return result
 
     def submit_ui_approval(self, incident_id: str, submission: ApprovalSubmission,
@@ -240,29 +250,66 @@ class ApiRuntime:
             if (result.status in {"SUCCESS", "FAILED", "PARTIAL"}
                     and incident_id not in self._ui_completion_order):
                 self._ui_completion_order.append(incident_id)
+                self._capture_evaluation(f"Verified {incident_id}")
             if result.status != "BLOCKED":
                 self._ui_runs.pop(incident_id, None)
             return result
 
+    def _measure_memory(self) -> dict:
+        """Evaluate the same held-out set against the current memory contents."""
+        correct = accepted = retrieved_relevant = retrieved_total = avoided = avoidable = 0
+        rows = []
+        for case in self.cases:
+            result = investigate_incident(case.incident, self.ui_memory, self.llm)
+            action = result.recommended_action.action_name if result.recommended_action else None
+            accepted += int(action is not None)
+            correct += int(action == case.expected_action)
+            recalled = {item.incident_id for item in result.historical_evidence}
+            relevant = set(case.relevant_incident_ids)
+            retrieved_relevant += len(recalled & relevant)
+            retrieved_total += len(recalled)
+            if action is not None and case.actions_to_avoid_before_remediation:
+                avoidable += 1
+                avoided += int(action not in case.actions_to_avoid_before_remediation)
+            rows.append({"incidentId": case.incident.incident_id, "expectedAction": case.expected_action,
+                         "recommendedAction": action, "status": result.status,
+                         "retrievedIds": sorted(recalled), "relevantIds": sorted(relevant),
+                         "method": result.method})
+        total = len(self.cases)
+        return {"correct": correct, "accepted": accepted, "total": total,
+                "score": round(100 * correct / total, 1),
+                "coverage": round(100 * accepted / total, 1),
+                "retrievalPrecision": round(100 * retrieved_relevant / retrieved_total, 1) if retrieved_total else 0.0,
+                "failedFixAvoidance": round(100 * avoided / avoidable, 1) if avoidable else 0.0,
+                "rows": rows}
+
+    def _capture_evaluation(self, label: str) -> None:
+        measurement = self._measure_memory()
+        self._evaluation_points.append({"step": len(self._evaluation_points), "label": label,
+                                        "memoryRecords": len(self.memory_records()), **measurement})
+
     def evaluation_progress(self) -> list[dict]:
         with self._lock:
-            total = len(self.cases)
-            correct = 0
-            points = [{"step": 0, "label": "Start", "completed": 0,
-                       "correct": 0, "score": 0.0}]
-            for step, incident_id in enumerate(self._ui_completion_order, start=1):
-                case = self.case(incident_id)
-                result = self._ui_results[incident_id]
-                action = result.investigation.recommended_action
-                correct += int(action is not None and action.action_name == case.expected_action)
-                points.append({"step": step, "label": incident_id, "completed": step,
-                               "correct": correct,
-                               "score": round(100 * correct / max(1, total), 1)})
-            return points
+            if not self._evaluation_points:
+                self._capture_evaluation("Empty memory")
+            return [dict(point) for point in self._evaluation_points]
+
+    def evaluation_report(self) -> dict:
+        points = self.evaluation_progress()
+        baseline, current = points[0], points[-1]
+        return {"backend": self.settings.memory_backend, "bank": (
+                    f"{self.settings.hindsight_bank_id}-dashboard-{self._ui_session}"
+                    if self.settings.memory_backend == "hindsight" else None),
+                "baseline": baseline, "current": current, "progress": points,
+                "completed": len(self._ui_completion_order), "total": len(self.cases)}
+
+    @property
+    def ui_completed(self) -> int:
+        return len(self._ui_completion_order)
 
     def search_failed_remediations(self, query: str, limit: int) -> FailedRemediationSearchResult:
         with self._lock:
-            matches = self.memory.retrieve_failed_remediation_chunks(query, limit)
+            matches = self.ui_memory.retrieve_failed_remediation_chunks(query, limit)
         return FailedRemediationSearchResult(query=query, matches=matches)
 
     def _scenario(self, name: DemoScenarioName) -> SimulationScenario:
