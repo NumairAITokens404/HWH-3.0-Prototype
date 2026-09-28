@@ -6,7 +6,7 @@ The FastAPI layer exposes the existing investigation and simulated workflow serv
 
 The React frontend selects the live adapter when `frontend/.env` contains `VITE_API_MODE=http`. Its dashboard routes use the `/api/ui/*` facade below; core automation remains in the same runtime and policy services used by the CLI and typed API.
 
-The UI facade starts with an empty session projection. Uploading history populates the incident queue, memory explorer, and current evaluation result. `POST /api/ui/reset` clears this projection and its simulated UI workflows without deleting durable backend records.
+The UI facade starts with an empty session projection. Uploading history populates the incident queue and memory explorer. Evaluation progress remains at zero until workflows finish. `POST /api/ui/reset` clears this projection, its upload list, and simulated UI workflows without deleting durable backend records.
 
 ## Start locally
 
@@ -39,6 +39,8 @@ The root URL `http://127.0.0.1:8000/` returns a small service status response. U
 | `POST /api/ui/incidents/{incident_id}/approval` | Submit the bound UI approval decision. |
 | `GET /api/ui/memory` | Search complete memory records for the memory explorer. |
 | `GET /api/ui/evaluation` | Run and return the deterministic checkpoint comparison. |
+| `GET /api/ui/uploads` | List successfully uploaded files retained in the dashboard session. |
+| `DELETE /api/ui/uploads/{upload_id}` | Remove one upload and rebuild the session projection from remaining files. |
 | `POST /api/ui/reset` | Reset the dashboard learning demonstration. |
 
 The API generates demo incident IDs. The browser never submits `required_action`, health truth, or expected evaluation labels. Low-risk scenarios finish immediately. High-risk scenarios return `HUMAN_APPROVAL_REQUIRED` and a `decision.request_id` that must be returned with the reviewer decision.

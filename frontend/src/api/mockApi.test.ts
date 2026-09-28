@@ -10,8 +10,8 @@ describe('mock API adapter', () => {
   })
 
   it('rejects unsupported upload formats', async () => {
-    const [job] = await mockApi.createUpload([new File(['text'], 'postmortem.txt', { type: 'text/plain' })])
+    const [job] = await mockApi.createUpload([new File(['text'], 'postmortem.exe', { type: 'application/octet-stream' })])
     expect(job.stage).toBe('failed')
-    expect(job.error).toMatch(/JSON/)
+    expect(job.error).toMatch(/Supported formats/)
   })
 })

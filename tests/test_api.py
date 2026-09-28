@@ -192,11 +192,16 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(self.upload_demo_history().status_code, 201)
         pending = self.client.post("/api/ui/incidents/TEST-003/workflow").json()
         self.assertEqual(pending["status"], "HUMAN_APPROVAL_REQUIRED")
+        self.assertEqual(self.client.get("/api/ui/overview").json()["pendingApprovals"], 1)
+        pending_rows = self.client.get("/api/ui/incidents").json()
+        self.assertEqual([row["incident_id"] for row in pending_rows
+                          if row["status"] == "APPROVAL_REQUIRED"], ["TEST-003"])
         approved = self.client.post("/api/ui/incidents/TEST-003/approval", json={
             "request_id": pending["decision"]["request_id"], "approved": True, "reviewer": "operator",
         })
         self.assertEqual(approved.status_code, 200)
         self.assertEqual(approved.json()["status"], "SUCCESS")
+        self.assertEqual(self.client.get("/api/ui/overview").json()["pendingApprovals"], 0)
 
     def test_ui_memory_and_evaluation_are_live(self):
         before = self.client.get("/api/ui/evaluation").json()
@@ -207,8 +212,24 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(len(memory.json()), 3)
         evaluation = self.client.get("/api/ui/evaluation")
         self.assertEqual(evaluation.status_code, 200)
-        self.assertEqual(evaluation.json()["metrics"][0]["withMemory"], "6 / 6")
+        self.assertEqual(evaluation.json()["metrics"][0]["withMemory"], "0 / 6")
+        self.assertEqual(evaluation.json()["progress"], [{"step": 0, "label": "Start", "completed": 0,
+                                                           "correct": 0, "score": 0.0}])
+        self.assertEqual(self.client.post("/api/ui/incidents/TEST-001/workflow").status_code, 200)
+        after_workflow = self.client.get("/api/ui/evaluation").json()
+        self.assertEqual(after_workflow["metrics"][0]["withMemory"], "1 / 6")
+        self.assertEqual(after_workflow["progress"][-1]["score"], 16.7)
         self.assertEqual(self.client.post("/api/ui/reset").json()["status"], "RESET")
+        self.assertEqual(self.client.get("/api/ui/incidents").json(), [])
+
+    def test_ui_uploads_persist_and_can_be_deleted(self):
+        uploaded = self.upload_demo_history()
+        upload_id = uploaded.json()["upload_id"]
+        jobs = self.client.get("/api/ui/uploads").json()
+        self.assertEqual([job["id"] for job in jobs], [upload_id])
+        self.assertEqual(jobs[0]["storedIncidents"], 18)
+        self.assertEqual(self.client.delete(f"/api/ui/uploads/{upload_id}").status_code, 204)
+        self.assertEqual(self.client.get("/api/ui/uploads").json(), [])
         self.assertEqual(self.client.get("/api/ui/incidents").json(), [])
 
 

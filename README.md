@@ -137,6 +137,8 @@ npm run dev
 curl.exe -X POST http://127.0.0.1:8000/api/memory/uploads -F "file=@data/remediation_history.json;type=application/json"
 ```
 
+The dashboard keeps a session upload list, supports deleting individual files, and offers four demo bundles including embedded operational logs. Uploading evidence enables the incident queue; the learning meter and evaluation graph advance only after workflows complete and approval-gated actions are reviewed.
+
 All actions, service checks, incidents, and outcomes in this repository are simulated or synthetic.
 
 ## Documentation

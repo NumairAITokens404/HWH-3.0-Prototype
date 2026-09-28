@@ -160,7 +160,9 @@ def create_app(settings: Settings | None = None, runtime: ApiRuntime | None = No
     def ui_memory(q: str = "", result: str = "", service: str = ""):
         records = runtime.memory_records()
         query = q.casefold().strip()
-        return [record for record in records
+        return [record.model_dump() | {"source_filename": runtime.memory_source(
+                    record.incident.incident_id)}
+                for record in records
                 if (not query or query in record.model_dump_json().casefold())
                 and (not result or any(outcome.result == result for outcome in record.outcomes))
                 and (not service or record.incident.service == service)]
@@ -168,31 +170,42 @@ def create_app(settings: Settings | None = None, runtime: ApiRuntime | None = No
     @app.get("/api/ui/overview", tags=["ui"])
     def ui_overview():
         incidents = ui_incidents()
+        progress = runtime.evaluation_progress()[-1]
         return {"active": sum(item["status"] not in {"RESOLVED", "PARTIAL"} for item in incidents),
                 "resolved": sum(item["status"] == "RESOLVED" for item in incidents),
                 "pendingApprovals": sum(item["status"] == "APPROVAL_REQUIRED" for item in incidents),
                 "memoryRecords": len(runtime.memory_records()),
                 "failedFixesAvoided": sum(len(record.outcomes) > 0 for record in runtime.memory_records()),
+                "learningCompleted": progress["completed"],
+                "learningTotal": len(runtime.cases),
+                "learningScore": progress["score"],
                 "recent": incidents[:5]}
 
     @app.get("/api/ui/evaluation", tags=["ui"])
     def ui_evaluation():
         total = len(runtime.cases)
-        correct = 0
-        accepted = 0
-        for case in runtime.cases:
-            result = runtime.investigate_ui(case.incident)
-            if result.recommended_action is not None:
-                accepted += 1
-                correct += result.recommended_action.action_name == case.expected_action
+        progress = runtime.evaluation_progress()
+        completed = progress[-1]["completed"]
+        correct = progress[-1]["correct"]
         return {"metrics": [
-            {"name": "Accepted action accuracy", "withoutMemory": f"0 / {total}",
+            {"name": "Verified correct actions", "withoutMemory": f"0 / {total}",
              "withMemory": f"{correct} / {total}", "improved": correct > 0},
-            {"name": "Accepted coverage", "withoutMemory": "0%",
-             "withMemory": f"{accepted / total:.0%}", "improved": accepted > 0},
+            {"name": "Completed incident coverage", "withoutMemory": "0%",
+             "withMemory": f"{completed / total:.0%}", "improved": completed > 0},
             {"name": "Memory records available", "withoutMemory": "0",
              "withMemory": str(len(runtime.memory_records())), "improved": bool(runtime.memory_records())},
-        ], "challenges": []}
+        ], "challenges": [], "progress": progress, "completed": completed, "total": total}
+
+    @app.get("/api/ui/uploads", tags=["ui"])
+    def ui_uploads():
+        return runtime.uploads()
+
+    @app.delete("/api/ui/uploads/{upload_id}", status_code=204, tags=["ui"])
+    def ui_delete_upload(upload_id: str):
+        try:
+            runtime.delete_upload(upload_id)
+        except KeyError as exc:
+            domain_error(exc)
 
     @app.post("/api/ui/reset", tags=["ui"])
     def ui_reset():

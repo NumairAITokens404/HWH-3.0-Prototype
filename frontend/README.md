@@ -27,7 +27,7 @@ npm run build
 - `/incidents` - searchable incident queue
 - `/incidents/:id` - investigation, evidence, policy, simulated workflow, and verification
 - `/memory` - Hindsight memory explorer with ordered outcomes and source chunks
-- `/memory/upload` - JSON upload and processing pipeline
+- `/memory/upload` - persistent session upload queue for JSON, CSV, Markdown, text/log, and PDF evidence
 - `/approvals` - medium and high risk review queue
 - `/evaluation` - synthetic before and after memory comparison
 
@@ -38,6 +38,8 @@ Pages use the `IncidentApi` interface in `src/api/client.ts`. `src/api/httpApi.t
 Live integration points:
 
 - `POST /api/memory/uploads`
+- `GET /api/ui/uploads`
+- `DELETE /api/ui/uploads/:uploadId`
 - `GET /api/ui/memory`
 - `POST /api/incidents/investigate`
 - `GET /api/ui/incidents`
@@ -51,7 +53,7 @@ All remediation actions and observations shown by the frontend remain explicitly
 
 ## Demo lifecycle
 
-The live dashboard begins with an empty session: no incident queue, memory records, or improved evaluation score is shown until a valid history file is uploaded. **Load demo dataset** uploads the repository's real `data/remediation_history.json` fixture. **Reset demo** on the overview clears the dashboard session so the before/after story can be demonstrated again. The configured durable backend still receives uploads; the session projection prevents previous local runs from pre-populating a new demonstration.
+The live dashboard begins with an empty session. The upload page offers starter, expanded, full, and embedded-log demo bundles. Uploaded files remain listed across navigation and can be removed from the session. Uploading evidence populates the incident queue but leaves verified benchmark progress at zero. The overview meter and evaluation graph advance only when incident workflows complete; approval-gated actions advance after review and verified execution. **Reset demo** is available from both the overview and incidents pages.
 
 ## Design system
 

@@ -34,6 +34,7 @@ class IngestionResult(Schema):
     incident_ids: list[NonEmpty]
     embedding_status: Literal["HINDSIGHT_SERVER", "NOT_AVAILABLE_LOCAL"]
     stages: list[Literal["UPLOADED", "VALIDATED", "CHUNKED", "STORED"]]
+    upload_id: str | None = None
 
 
 class FailedRemediationSearchResult(Schema):
