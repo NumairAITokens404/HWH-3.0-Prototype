@@ -14,6 +14,8 @@ The React frontend selects the live adapter when `frontend/.env` contains `VITE_
 
 Open `http://127.0.0.1:8000/docs` for the interactive API schema. Configure allowed frontend origins with `API_CORS_ORIGINS`.
 
+The root URL `http://127.0.0.1:8000/` returns a small service status response. Use `/api/health` for the health contract and `/docs` for interactive API testing.
+
 `GET /api/health` and `GET /api/capabilities` report `action_backend` and whether actions are simulated. The safe default is `simulation`; see [sandbox connectors](phase-9-connectors.md) before enabling connector execution.
 
 ## Endpoints

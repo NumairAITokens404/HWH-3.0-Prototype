@@ -30,6 +30,11 @@ def create_app(settings: Settings | None = None, runtime: ApiRuntime | None = No
                        allow_credentials=False, allow_methods=["GET", "POST"],
                        allow_headers=["Content-Type", "Authorization"])
 
+    @app.get("/", tags=["system"])
+    def root():
+        return {"service": "adaptive-incident-intelligence-api", "status": "ok",
+                "docs": "/docs", "health": "/api/health"}
+
     def domain_error(exc: Exception):
         if isinstance(exc, IngestionValidationError):
             raise HTTPException(status_code=422, detail=str(exc)) from exc

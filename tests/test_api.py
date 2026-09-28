@@ -21,6 +21,9 @@ class ApiTests(unittest.TestCase):
         self.client = TestClient(create_app(self.settings, self.runtime))
 
     def test_health_capabilities_and_openapi(self):
+        root = self.client.get("/")
+        self.assertEqual(root.status_code, 200)
+        self.assertEqual(root.json()["health"], "/api/health")
         health = self.client.get("/api/health")
         self.assertEqual(health.status_code, 200)
         self.assertEqual(health.json()["memory_backend"], "mock")
