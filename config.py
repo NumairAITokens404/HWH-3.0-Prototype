@@ -18,6 +18,11 @@ class Settings:
     hindsight_timeout: float = 120.0
     sqlite_path: Path = field(default_factory=lambda: Path(__file__).resolve().parent / ".runtime" / "incidents.sqlite3")
     workflow_db_path: Path | None = None
+    action_backend: str = "simulation"
+    connector_base_url: str = "http://127.0.0.1:9000"
+    connector_api_key: str | None = field(default=None, repr=False)
+    connector_timeout: float = 30.0
+    connector_receipt_db_path: Path | None = None
     llm_provider: str = "none"
     llm_base_url: str = "http://127.0.0.1:11434"
     llm_model: str = "qwen3.5:9b"
@@ -30,6 +35,8 @@ class Settings:
     def __post_init__(self):
         if self.memory_backend not in {"mock", "sqlite", "hindsight"}:
             raise ValueError("MEMORY_BACKEND must be mock, sqlite, or hindsight")
+        if self.action_backend not in {"simulation", "connector"}:
+            raise ValueError("ACTION_BACKEND must be simulation or connector")
         url = urlparse(self.hindsight_base_url)
         if url.scheme not in {"http", "https"} or not url.hostname or url.username or url.password or url.query or url.fragment:
             raise ValueError("HINDSIGHT_BASE_URL must be an HTTP(S) URL without credentials/query/fragment")
@@ -37,6 +44,12 @@ class Settings:
             raise ValueError("HINDSIGHT_BANK_ID must not be empty")
         if not math.isfinite(self.hindsight_timeout) or self.hindsight_timeout <= 0:
             raise ValueError("HINDSIGHT_TIMEOUT must be finite and positive")
+        connector = urlparse(self.connector_base_url)
+        if (connector.scheme not in {"http", "https"} or not connector.hostname
+                or connector.username or connector.password or connector.query or connector.fragment):
+            raise ValueError("CONNECTOR_BASE_URL must be an HTTP(S) URL without credentials/query/fragment")
+        if not math.isfinite(self.connector_timeout) or self.connector_timeout <= 0:
+            raise ValueError("CONNECTOR_TIMEOUT must be finite and positive")
         if self.llm_provider not in {"none", "ollama"}:
             raise ValueError("LLM_PROVIDER must be none or ollama")
         endpoint = urlparse(self.llm_base_url)
@@ -74,6 +87,11 @@ class Settings:
                    hindsight_timeout=float(value("HINDSIGHT_TIMEOUT", "120")),
                    sqlite_path=path("SQLITE_PATH", root / ".runtime" / "incidents.sqlite3"),
                    workflow_db_path=path("WORKFLOW_DB_PATH", root / ".runtime" / "workflows.sqlite3"),
+                   action_backend=value("ACTION_BACKEND", "simulation"),
+                   connector_base_url=value("CONNECTOR_BASE_URL", "http://127.0.0.1:9000").rstrip("/"),
+                   connector_api_key=value("CONNECTOR_API_KEY", "") or None,
+                   connector_timeout=float(value("CONNECTOR_TIMEOUT", "30")),
+                   connector_receipt_db_path=path("CONNECTOR_RECEIPT_DB_PATH", root / ".runtime" / "connector-receipts.sqlite3"),
                    llm_provider=value("LLM_PROVIDER", "none"),
                    llm_base_url=value("LLM_BASE_URL", "http://127.0.0.1:11434").rstrip("/"),
                    llm_model=value("LLM_MODEL", "qwen3.5:9b"),

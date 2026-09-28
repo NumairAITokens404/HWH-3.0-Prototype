@@ -15,7 +15,8 @@ class HealthResponse(Schema):
     memory_backend: NonEmpty
     llm_provider: NonEmpty
     model: str | None = None
-    simulated_actions: Literal[True] = True
+    action_backend: Literal["simulation", "connector"]
+    simulated_actions: bool
 
 
 class CapabilityResponse(Schema):
@@ -28,7 +29,8 @@ class CapabilityResponse(Schema):
     ingestion_formats: list[Literal["json", "csv", "md", "txt", "log", "pdf"]] = Field(
         default_factory=lambda: ["json", "csv", "md", "txt", "log", "pdf"])
     embedding_provider: Literal["hindsight", "none"]
-    simulated_actions: Literal[True] = True
+    action_backend: Literal["simulation", "connector"]
+    simulated_actions: bool
 
 
 class DemoScenarioInfo(Schema):

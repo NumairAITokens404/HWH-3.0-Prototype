@@ -16,6 +16,7 @@ from schemas.workflow import Approval, SimulationScenario, WorkflowResult
 from services.incident_service import IncidentWorkflow, investigate_incident
 from services.ingestion_service import ingest_incident_history
 from services.workflow_store import WorkflowStore
+from tools.connectors import ConnectorReceiptStore, SandboxHTTPConnector
 from tools.simulation import SimulationWorld
 
 
@@ -53,7 +54,15 @@ class ApiRuntime:
         self._runs: dict[str, _Run] = {}
         self._lock = RLock()
         self.workflow_store = WorkflowStore(settings.workflow_db_path)
+        self.connector_receipts = (ConnectorReceiptStore(settings.connector_receipt_db_path)
+                                   if settings.action_backend == "connector" else None)
         self._restore_pending_runs()
+
+    def _execution_backend(self, scenario: SimulationScenario):
+        if self.settings.action_backend == "simulation":
+            return SimulationWorld([scenario])
+        return SandboxHTTPConnector(self.settings.connector_base_url, self.settings.connector_timeout,
+                                    self.connector_receipts, api_key=self.settings.connector_api_key)
 
     def _restore_pending_runs(self) -> None:
         records = self.workflow_store.pending_runs(self.max_active_runs + 1)
@@ -61,7 +70,7 @@ class ApiRuntime:
             raise RuntimeError("Persisted workflow capacity exceeds max_active_runs")
         for record in records:
             scenario = record.scenario
-            workflow = IncidentWorkflow(self.memory, SimulationWorld([scenario]), self.llm)
+            workflow = IncidentWorkflow(self.memory, self._execution_backend(scenario), self.llm)
             workflow.restore_pending(scenario.incident, record.result.investigation)
             self._runs[record.incident_id] = _Run(scenario=scenario, workflow=workflow)
 
@@ -137,7 +146,7 @@ class ApiRuntime:
             if len(self._runs) >= self.max_active_runs:
                 raise RuntimeError("Demo workflow capacity reached; restart the API to clear local state")
             scenario = self._scenario(name)
-            workflow = IncidentWorkflow(self.memory, SimulationWorld([scenario]), self.llm)
+            workflow = IncidentWorkflow(self.memory, self._execution_backend(scenario), self.llm)
             run = _Run(scenario=scenario, workflow=workflow)
             result = workflow.run(scenario.incident)
             if result.status == "HUMAN_APPROVAL_REQUIRED":

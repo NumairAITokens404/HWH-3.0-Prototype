@@ -38,6 +38,9 @@ class ToolResult(Schema):
     action: NonEmpty
     result: Result
     detail: NonEmpty
+    execution_mode: Literal["simulation", "connector"] = "simulation"
+    idempotency_key: NonEmpty | None = None
+    receipt_replayed: bool = False
 
 
 class VerificationResult(Schema):
@@ -57,4 +60,4 @@ class WorkflowResult(Schema):
     reprocessing: ToolResult | None = None
     verification: VerificationResult | None = None
     memory_stored: bool = False
-    simulated: Literal[True] = True
+    simulated: bool = True

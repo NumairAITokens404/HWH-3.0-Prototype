@@ -5,10 +5,10 @@ from agents.reprocessing import ReprocessingAgent
 from schemas.incident import Incident
 from schemas.remediation import RemediationAction
 from schemas.workflow import Approval, ToolResult
-from tools.simulation import SimulationWorld
+from tools.execution_backend import ExecutionBackend
 
 
-def remediate_and_retry(incident: Incident, action: RemediationAction, world: SimulationWorld,
+def remediate_and_retry(incident: Incident, action: RemediationAction, world: ExecutionBackend,
                         approval: Approval | None = None) -> tuple[ToolResult, ToolResult | None]:
     remediation = AutoRemediationAgent().execute(incident, action, world, approval)
     retry = ReprocessingAgent().execute(incident, world) if remediation.result == "SUCCESS" else None

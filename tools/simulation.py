@@ -16,6 +16,8 @@ class _State:
 
 
 class SimulationWorld:
+    simulated = True
+
     def __init__(self, scenarios: list[SimulationScenario]):
         self._states: dict[str, _State] = {}
         for scenario in scenarios:
@@ -60,3 +62,7 @@ class SimulationWorld:
     def observe(self, incident: Incident) -> tuple[bool, bool]:
         state = self._state(incident)
         return state.healthy, state.recovered
+
+    def observation(self, incident: Incident) -> tuple[bool, bool, str]:
+        healthy, recovered = self.observe(incident)
+        return healthy, recovered, f"Observed service_healthy={healthy}, operation_recovered={recovered} in the simulator."

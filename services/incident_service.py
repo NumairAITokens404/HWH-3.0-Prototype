@@ -10,7 +10,7 @@ from schemas.workflow import Approval, WorkflowResult
 from services.remediation_service import remediate_and_retry
 from services.verification_service import verify_recovery
 from tools.risk_classifier import classify_action
-from tools.simulation import SimulationWorld
+from tools.execution_backend import ExecutionBackend
 from llm.client import StructuredLLM
 from agents.llm_investigator import LLMInvestigator
 
@@ -28,7 +28,7 @@ class IncidentWorkflow:
     This class is synchronous and is not a durable or concurrent job runner.
     """
 
-    def __init__(self, client: HindsightClient, world: SimulationWorld, llm: StructuredLLM | None = None):
+    def __init__(self, client: HindsightClient, world: ExecutionBackend, llm: StructuredLLM | None = None):
         self.client = client
         self.world = world
         self.llm = llm
@@ -61,7 +61,8 @@ class IncidentWorkflow:
         if key not in self._pending:
             self._pending[key] = investigate_incident(incident, self.client, self.llm)
         investigation = self._pending[key]
-        result = WorkflowResult(incident_id=key, status="INSUFFICIENT_EVIDENCE", investigation=investigation)
+        result = WorkflowResult(incident_id=key, status="INSUFFICIENT_EVIDENCE",
+                                investigation=investigation, simulated=self.world.simulated)
         action = investigation.recommended_action
         if action is None:
             return result.model_copy(deep=True)
@@ -82,7 +83,8 @@ class IncidentWorkflow:
         result.status = verification.result
         # Store observations, not the acknowledgement alone, as verified outcomes.
         fix_result = "SUCCESS" if verification.service_healthy else "FAILED"
-        lesson = (f"Simulation: {verification.detail} Tool acknowledgement: {remediation.result}. "
+        source = "Simulation" if self.world.simulated else "Sandbox connector"
+        lesson = (f"{source}: {verification.detail} Tool acknowledgement: {remediation.result}. "
                   "The stored root cause remains the investigator's historical hypothesis.")
         outcomes = [Outcome(
             outcome_id=f"{key}-fix", incident_id=key, action=action.action_name,
@@ -95,14 +97,14 @@ class IncidentWorkflow:
                 result=verification.result if verification.operation_recovered else "FAILED",
                 tool_result=retry.result, reprocessing_result=retry.result,
                 risk_level="LOW", verified=True,
-                lesson_learned=f"Simulation: retry acknowledgement={retry.result}; {verification.detail}",
+                lesson_learned=f"{source}: retry acknowledgement={retry.result}; {verification.detail}",
             ))
         # Preserve the authoritative risk while leaving recommendation confidence intact.
         stored_action = action.model_copy(update={"risk_level": decision.risk_level})
         memory = IncidentMemory(incident=incident.model_copy(deep=True),
                                 root_cause=investigation.likely_root_cause,
                                 recommendation=stored_action, outcomes=outcomes,
-                                final_resolution=f"SIMULATED {verification.result}: {verification.detail}",
+                                final_resolution=f"{source.upper()} {verification.result}: {verification.detail}",
                                 final_outcome=verification.result)
         self._completed[key] = (result, memory)
         self.client.store_incident_memory(memory)

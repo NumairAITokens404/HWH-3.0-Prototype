@@ -8,6 +8,11 @@ services:
       MEMORY_BACKEND: ${MEMORY_BACKEND:-sqlite}
       SQLITE_PATH: /app/.runtime/incidents.sqlite3
       WORKFLOW_DB_PATH: /app/.runtime/workflows.sqlite3
+      ACTION_BACKEND: ${ACTION_BACKEND:-simulation}
+      CONNECTOR_BASE_URL: ${DOCKER_CONNECTOR_BASE_URL:-http://host.docker.internal:9000}
+      CONNECTOR_API_KEY: ${CONNECTOR_API_KEY:-}
+      CONNECTOR_TIMEOUT: ${CONNECTOR_TIMEOUT:-30}
+      CONNECTOR_RECEIPT_DB_PATH: /app/.runtime/connector-receipts.sqlite3
       LLM_PROVIDER: ${LLM_PROVIDER:-ollama}
       LLM_BASE_URL: ${DOCKER_LLM_BASE_URL:-http://host.docker.internal:11434}
       LLM_MODEL: ${LLM_MODEL:-qwen3.5:9b}

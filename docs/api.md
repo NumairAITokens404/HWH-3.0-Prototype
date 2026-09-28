@@ -12,6 +12,8 @@ The FastAPI layer exposes the existing investigation and simulated workflow serv
 
 Open `http://127.0.0.1:8000/docs` for the interactive API schema. Configure allowed frontend origins with `API_CORS_ORIGINS`; credentials are disabled because this prototype does not implement authentication.
 
+`GET /api/health` and `GET /api/capabilities` report `action_backend` and whether actions are simulated. The safe default is `simulation`; see [sandbox connectors](phase-9-connectors.md) before enabling connector execution.
+
 ## Endpoints
 
 | Method and path | Purpose |

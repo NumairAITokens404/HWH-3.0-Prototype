@@ -2,8 +2,8 @@
 
 from schemas.incident import Incident
 from schemas.workflow import ToolResult
-from tools.simulation import SimulationWorld
+from tools.execution_backend import ExecutionBackend
 
 
-def reprocess_operation(incident: Incident, world: SimulationWorld) -> ToolResult:
+def reprocess_operation(incident: Incident, world: ExecutionBackend) -> ToolResult:
     return world.retry(incident)

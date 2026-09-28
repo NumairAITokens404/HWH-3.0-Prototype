@@ -20,7 +20,7 @@ def create_app(settings: Settings | None = None, runtime: ApiRuntime | None = No
     settings = settings or Settings.from_env()
     runtime = runtime or ApiRuntime(settings)
     app = FastAPI(title="Adaptive Incident Intelligence API", version="0.1.0",
-                  description="Typed API for investigation and explicitly simulated recovery workflows.")
+                  description="Typed API for investigation and policy-controlled recovery workflows.")
     app.state.runtime = runtime
     app.add_middleware(CORSMiddleware, allow_origins=list(settings.api_cors_origins),
                        allow_credentials=False, allow_methods=["GET", "POST"], allow_headers=["Content-Type"])
@@ -39,13 +39,17 @@ def create_app(settings: Settings | None = None, runtime: ApiRuntime | None = No
     @app.get("/api/health", response_model=HealthResponse, tags=["system"])
     def health():
         return HealthResponse(memory_backend=settings.memory_backend, llm_provider=settings.llm_provider,
-                              model=settings.llm_model if settings.llm_provider == "ollama" else None)
+                              model=settings.llm_model if settings.llm_provider == "ollama" else None,
+                              action_backend=settings.action_backend,
+                              simulated_actions=settings.action_backend == "simulation")
 
     @app.get("/api/capabilities", response_model=CapabilityResponse, tags=["system"])
     def capabilities():
         return CapabilityResponse(persistent_memory=settings.memory_backend in {"sqlite", "hindsight"},
                                   live_hindsight=settings.memory_backend == "hindsight",
-                                  embedding_provider="hindsight" if settings.memory_backend == "hindsight" else "none")
+                                  embedding_provider="hindsight" if settings.memory_backend == "hindsight" else "none",
+                                  action_backend=settings.action_backend,
+                                  simulated_actions=settings.action_backend == "simulation")
 
     @app.post("/api/memory/uploads", response_model=IngestionResult, status_code=201, tags=["memory"])
     async def upload_memory(file: UploadFile = File(...)):
