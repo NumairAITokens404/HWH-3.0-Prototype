@@ -72,6 +72,30 @@ class IncidentWorkflow:
         if decision.status != "ALLOWED":
             result.status = decision.status
             if decision.status == "DENIED":
+                # A rejected recommendation is still a verified control-plane
+                # outcome. Persist it so future investigations can learn that
+                # this action was considered and intentionally not executed.
+                memory = IncidentMemory(
+                    incident=incident.model_copy(deep=True),
+                    root_cause=investigation.likely_root_cause,
+                    recommendation=action.model_copy(deep=True),
+                    outcomes=[Outcome(
+                        outcome_id=f"{key}-rejected",
+                        incident_id=key,
+                        action=action.action_name,
+                        result="FAILED",
+                        tool_result=None,
+                        risk_level=decision.risk_level,
+                        verified=True,
+                        lesson_learned=("Human review rejected the proposed remediation; "
+                                         "do not execute it without new evidence."),
+                    )],
+                    final_resolution="HUMAN_REVIEW DENIED: remediation was not executed",
+                    final_outcome="FAILED",
+                )
+                self.client.store_incident_memory(memory)
+                result.memory_stored = True
+                self._completed[key] = (result, memory)
                 self._terminal[key] = result.model_copy(deep=True)
                 self._pending.pop(key, None)
             return result.model_copy(deep=True)

@@ -1,11 +1,12 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { UploadPage } from './UploadPage'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
 describe('memory upload page', () => {
   it('shows the complete ingestion architecture and queues the demo file', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
     const user = userEvent.setup()
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     render(<QueryClientProvider client={queryClient}><UploadPage /></QueryClientProvider>)
