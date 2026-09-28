@@ -2,7 +2,7 @@
 
 [Documentation index](README.md) | [Previous: foundations](phase-1-foundations.md) | [Next: remaining phases](roadmap.md)
 
-**Status: deterministic baseline implemented; LLM reasoning remains planned.**
+**Status: deterministic baseline and guarded local LLM reasoning implemented.** See [Phase 5B](phase-5-llm.md) for the model layer.
 
 ## Steps completed
 

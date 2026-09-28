@@ -1,125 +1,131 @@
 # Adaptive Incident Intelligence
 
-### Remember what failed. Recommend what worked. Verify recovery.
+### Remember failed fixes. Recommend proven actions. Verify recovery.
 
-An incident-response prototype that uses past experience to help engineers investigate failures, choose a fix, and recover failed operations. **Hindsight is the shared-memory integration at the center of the design; the default demo uses a local mock.**
+Incident responders often repeat work because the useful parts of earlier incidents are scattered across logs, tickets, and individual memory. A retry may even be repeated before anyone fixes the condition that caused it to fail.
 
-## The problem
+Adaptive Incident Intelligence turns every incident into reusable evidence. It retrieves similar cases, uses a local LLM to explain the strongest historical recovery sequence, applies a deterministic risk policy, simulates the approved action, retries the failed operation, verifies recovery, and stores the observed result.
 
-A transaction fails. A queue stops processing. A service becomes unavailable.
+## Why this matters
 
-Engineers must find the cause, decide what to change, and recover the affected work. A similar incident may already have been solved, but its lessons are scattered across tickets, logs, and individual memory. Teams can repeat a failed fix or retry a transaction before addressing the reason it failed.
+For an on-call engineer, the system answers four practical questions:
 
-**Our problem statement: How can each incident help a team resolve the next similar incident with better evidence and fewer repeated mistakes?**
+1. **Have we seen this failure before?**
+2. **What worked, and what already failed?**
+3. **Can this action run automatically, or does a person need to approve it?**
+4. **Did the service and the affected operation actually recover?**
 
-## Our solution
+The system preserves failed and partial outcomes as evidence. A successful tool response alone never counts as recovery.
 
-Adaptive Incident Intelligence connects investigation, controlled remediation, and recovery in one learning loop:
-
-- **Recall experience:** find similar incidents, including fixes that failed.
-- **Recommend with evidence:** explain the likely cause and suggested action using past outcomes.
-- **Control execution:** automatically run allowed low-risk actions; require human approval for higher-risk changes.
-- **Recover the work:** retry the affected transaction, request, or job after remediation.
-- **Check and remember:** verify recovery and retain successful, failed, and partial outcomes.
-
-The intended users are incident-response engineers and service support teams. The goal is to reduce repeated troubleshooting and make recovery decisions easier to review.
-
-## Architecture
-
-**Working simulated workflow** ? investigation, approval checks, remediation, retries, verification, and memory feedback run locally. The real Hindsight adapter is implemented; live service verification and LLM reasoning remain pending.
+## End-to-end flow
 
 ```text
-Incident / Failure
-        |
-        v
-Incident Investigator <----> Hindsight Memory
-        |                    Past incidents, failed fixes,
-        |                    successful fixes, and outcomes
-        v
-Historical Similarity & Remediation Analysis
-        |
-        v
-Recommended Action + Supporting Evidence
-        |
-        v
-Action Decision Layer
-        |
-        +-- Allowed low-risk action ------------------+
-        |                                             |
-        +-- Medium / high risk --> Human approval ----+
-                                   |                  |
-                              If declined: stop       v
-                                             Auto Remediation Agent
-                                                      |
-                                            Remediation succeeds
-                                                      |
-                                                      v
-                                             Reprocessing Agent
-                                                      |
-                                                      v
-                                             Outcome Verification
-                                                      |
-                                          Resolved / Failed / Partial
-                                                      |
-                                                      v
-                                             Hindsight Memory Update
-                                                      |
-                                          Evidence for future incidents
+Incident
+   |
+   v
+Retrieve similar incidents and ordered outcomes
+   |
+   v
+Local LLM proposal (Qwen3.5 9B) + evidence citations
+   |
+   v
+Python validation: supported action, real citations, fixed risk policy
+   |
+   +-- low risk --------------------> simulated remediation
+   |
+   +-- medium/high risk --> human approval --> simulated remediation
+                                              |
+                                              v
+                                      reprocess failed work
+                                              |
+                                              v
+                                  verify service + operation recovery
+                                              |
+                                              v
+                                  store success / failure / partial result
 ```
 
-If remediation fails, its outcome is captured without starting reprocessing. Approval permits an action; verification determines whether recovery actually worked.
+The LLM proposes and explains. Python owns citation checks, action support, risk classification, approval binding, and execution. Unsupported model output cannot reach an action tool.
 
-| Role | Plain-language responsibility |
+## Working prototype
+
+- **Local reasoning:** Ollama with `qwen3.5:9b`, selected for the project machine's RTX 5070 Ti 12 GB GPU. The measured run used an 8,192-token context and loaded fully on the GPU.
+- **Persistent memory without Docker:** SQLite stores incidents and outcomes across runs.
+- **Hindsight-ready:** the official SDK adapter, backend selection, and offline contract tests are implemented. A live Hindsight service remains optional.
+- **Complete simulated loop:** investigation, policy checks, human approval pause/resume, remediation, retry, independent verification, and memory feedback.
+- **Structured and guarded:** Pydantic validates every input and model proposal; malformed, truncated, unsupported, or uncited output is rejected or disclosed as fallback.
+- **Synthetic benchmark:** 18 historical incidents, 54 ordered outcomes, and 6 held-out cases across six failure families.
+
+## Measured result
+
+On the six synthetic held-out cases, using `qwen3.5:9b` locally:
+
+| Evaluation | Raw action accuracy | Accepted action accuracy | Accepted coverage | Failed actions repeated | Model fallbacks |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Without incident memory | 1/6 | 0/6 | 0/6 | 0 | 0 |
+| With incident memory | 6/6 | 6/6 | 6/6 | 0 | 0 |
+
+All three additional challenges—unknown error, missing error, and conflicting history—returned **insufficient evidence** and executed nothing.
+
+These are small synthetic fixtures that resemble the stored incident families. They demonstrate the workflow and safety gates; they do not establish production accuracy or recovery-time savings. Four memory-backed cases paused for approval, while two low-risk cases completed simulated recovery.
+
+## Example
+
+A transaction fails with an invalid PIN state. Similar incidents show this order:
+
+| Step | Outcome |
 | --- | --- |
-| **Incident Investigator** | Understand the failure, compare past responses, and recommend a fix. |
-| **Auto Remediation Agent** | Carry out actions allowed by the decision layer. |
-| **Reprocessing Agent** | Retry the failed operation after remediation. |
-| **Outcome Verification** | Check whether the issue and affected operation recovered. |
-| **Hindsight Memory** | Preserve what happened, what was tried, and what worked or failed. |
+| Retry transaction immediately | Failed |
+| Reset the stale PIN state | Succeeded |
+| Retry after remediation | Succeeded |
 
-## A concrete example
+The investigator recommends `reset_customer_pin`, cites the supporting incidents or outcomes, and the low-risk demo policy permits simulated execution. It then retries the transaction, verifies both service health and transaction recovery, and stores the observed sequence for later incidents.
 
-A customer transaction fails because of an inconsistent PIN state. Historical incidents contain this sequence:
+## Run it
 
-| Attempt | Recorded result | Lesson |
-| --- | --- | --- |
-| Retry the transaction | Failed | Retrying alone did not address the problem. |
-| Reset the simulated PIN state | Succeeded | Address the state inconsistency first. |
-| Retry the transaction again | Succeeded | The order of actions matters. |
+Requirements: Python 3.10+, Ollama, and the local `qwen3.5:9b` model. No paid API or Docker is required.
 
-**The current demo recommends the PIN-state reset and cites the matching incidents.** It then applies the action policy, performs the simulated fix, retries the transaction, verifies simulated recovery, and stores the outcome. A second incident retrieves the first incident?s experience. A separate high-risk case pauses for approval.
-
-## What makes this approach useful
-
-- **Failed fixes remain useful evidence.** The system retains what to avoid repeating, alongside successful responses.
-- **Action order is preserved.** A retry before remediation and a retry after remediation are treated in context.
-- **Recommendations are reviewable.** Engineers can inspect the historical incidents behind a suggestion.
-- **Uncertainty is visible.** The current investigator declines to recommend when evidence is missing or conflicting.
-- **Recovery closes the loop.** The target design checks the affected operation and feeds the observed result back into memory.
-
-## What works today
-
-The working prototype runs the complete recovery loop against an isolated simulator. It includes:
-
-- **18 synthetic historical incidents**, **6 held-out cases**, and **54 recorded action outcomes** across six incident families.
-- A mock memory interface and a rule-based investigation baseline.
-- An explicit action policy, approval checks, simulated remediation and retries, independent simulated health checks, and outcome storage.
-- Tests for evidence handling, recommendations, conflicting history, and data integrity: **50 tests passed in the latest full run**.
-
-**Next:** configure and verify the real Hindsight service, add LLM reasoning, and measure results. The optional Hindsight adapter is implemented and tested offline. Approvals are trusted local inputs; production authentication and durable workflow execution are outside this prototype. Every action and health check is simulated. Mock memory resets on exit; the real backend is designed to retain source records in Hindsight. Recovery-time savings and production accuracy have not yet been measured.
-
-## Try the prototype
-
-Follow the [setup and demo instructions](docs/getting-started.md). Once dependencies are installed, run:
-
-```bash
-python main.py
+```powershell
+python -m venv .venv
+.venv\Scripts\python.exe -m pip install -r requirements.txt
+ollama pull qwen3.5:9b
+Copy-Item .env.example .env
 ```
 
-The output shows two simulated recoveries, evidence recalled from the first incident, and a high-risk action paused for approval. Structured investigation and workflow results are available through the Python service API. All demo data is synthetic. Default mock mode needs no production connection or API key. [Real Hindsight setup](docs/hindsight-setup.md) is optional and requires a configured service.
+Set `MEMORY_BACKEND=sqlite` and `LLM_PROVIDER=ollama` in `.env`, then run:
 
-## How we will measure success
+```powershell
+.venv\Scripts\python.exe -m llm.check --generate
+.venv\Scripts\python.exe main.py
+```
 
-Compare recommendations **with and without incident memory** on held-out cases: correct fixes, repeated failed actions, troubleshooting steps, root-cause accuracy, and retrieval relevance. These measurements will test whether remembered experience improves decisions.
+Useful commands:
 
-[Architecture details](docs/architecture.md) ? [Build phases](docs/roadmap.md) ? [Technical documentation](docs/README.md)
+```powershell
+# Fast offline rules demo
+.venv\Scripts\python.exe main.py --engine rules --memory mock
+
+# Investigate without executing
+.venv\Scripts\python.exe main.py investigate --input data/examples/incident.json
+
+# Review a high-risk simulated action
+.venv\Scripts\python.exe main.py run --input data/examples/high-risk-scenario.json --memory mock --interactive
+
+# Reproduce the local evaluation
+.venv\Scripts\python.exe -m evaluation.evaluate_memory --engine ollama --output reports/local-ollama.json
+
+# Run all tests
+.venv\Scripts\python.exe -m unittest discover -s tests -v
+```
+
+All actions, service checks, incidents, and outcomes in this repository are simulated or synthetic.
+
+## Documentation
+
+- [Getting started](docs/getting-started.md)
+- [Architecture and trust boundaries](docs/architecture.md)
+- [Local model and GPU setup](docs/local-model.md)
+- [Measured evaluation](docs/phase-6-evaluation.md)
+- [Implementation reference](docs/implementation.md)
+- [Optional Hindsight setup](docs/hindsight-setup.md)
+- [Build phases](docs/README.md)

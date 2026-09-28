@@ -2,7 +2,7 @@
 
 [Documentation index](README.md) | [Adapter design](phase-5-hindsight.md)
 
-The default demo remains offline. The following steps enable a real service. The application does not automatically load `.env`; set variables in the terminal that runs Python. Do not commit credentials.
+The local demo can use SQLite and Ollama without Hindsight. The following steps enable a real service. The application automatically loads the project `.env`; shell variables override it. Do not commit credentials.
 
 ## 1. Start or obtain a service
 

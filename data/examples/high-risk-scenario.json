@@ -1,0 +1,12 @@
+{
+  "incident": {
+    "incident_id": "REVIEW-001",
+    "service": "database-service",
+    "severity": "HIGH",
+    "symptoms": ["connection pool exhausted", "queries waiting for a connection"],
+    "error_code": "DB_POOL_EXHAUSTED",
+    "environment": "production"
+  },
+  "operation_id": "SYN-REQ-REVIEW",
+  "required_action": "rollback_connection_pool_change"
+}

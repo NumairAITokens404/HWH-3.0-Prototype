@@ -19,14 +19,14 @@ Human approval authorizes a remediation; it does not itself fix the incident. Ap
 
 | Architecture role | Code location | Status |
 | --- | --- | --- |
-| Incident Investigator | `agents/incident_investigator.py` | Deterministic baseline implemented |
-| Historical similarity and remediation analysis | `agents/remediation_memory.py`, `memory/memory_retriever.py` | Implemented against mock memory |
-| Hindsight memory | `memory/hindsight_client.py`, `memory/memory_writer.py` | Protocol, mock, and real SDK adapter; live verification pending |
+| Incident Investigator | `agents/incident_investigator.py`, `agents/llm_investigator.py` | Deterministic baseline plus guarded Ollama synthesis |
+| Historical similarity and remediation analysis | `agents/remediation_memory.py`, `memory/memory_retriever.py` | Implemented for mock, SQLite, and Hindsight protocol clients |
+| Incident memory | `memory/hindsight_client.py`, `memory/sqlite_client.py`, `memory/hindsight_adapter.py` | Mock and SQLite working; real SDK adapter awaiting a live service |
 | Action Decision Layer | `tools/risk_classifier.py` | Implemented simulation allowlist and bound approvals |
 | Auto Remediation Agent | `agents/auto_remediation.py`, remediation service/tools | Implemented for local simulation |
 | Reprocessing Agent | `agents/reprocessing.py`, `tools/reprocessing_tools.py` | Implemented with remediation prerequisite |
 | Outcome Verification | `agents/outcome_verifier.py`, `services/verification_service.py` | Independent simulated health and operation checks |
-| Memory update | Outcome storage contract in `memory/hindsight_client.py` | Verified simulated outcomes written by `IncidentWorkflow` |
+| Memory update | All memory clients through the shared protocol | Verified simulated outcomes written by `IncidentWorkflow` |
 
 The Remediation Memory module supports the investigator. It is distinct from the Auto Remediation Agent, which executes approved actions.
 
@@ -38,6 +38,7 @@ The Remediation Memory module supports the investigator. It is distinct from the
 - **Separate recommendation and authorization:** every current investigation result has `execution_authorized: false`.
 - **Verify recovery:** a successful tool response alone is not proof that the failed operation recovered.
 - **Retain every outcome:** future memory should contain failures and partial recoveries as well as successful fixes.
+- **Constrain the model:** schema validation, allowlisted actions, real citation checks, and historical sequence support run in Python.
 
 The hackathon's action tools are simulated. PIN reset is labeled low risk only within the synthetic demo; it is not a production authorization policy.
 

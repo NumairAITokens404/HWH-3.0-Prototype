@@ -6,7 +6,7 @@ Observed sequences support a hypothesis, not proof that an action caused recover
 
 from agents.remediation_memory import RemediationMemory
 from schemas.incident import Incident
-from schemas.investigation import InvestigationResult
+from schemas.investigation import InvestigationResult, MemoryAnalysis
 from schemas.remediation import RemediationAction
 
 
@@ -14,8 +14,8 @@ class IncidentInvestigator:
     def __init__(self, memory: RemediationMemory):
         self.memory = memory
 
-    def investigate(self, incident: Incident) -> InvestigationResult:
-        analysis = self.memory.analyze(incident)
+    def investigate(self, incident: Incident, analysis: MemoryAnalysis | None = None) -> InvestigationResult:
+        analysis = analysis if analysis is not None else self.memory.analyze(incident)
         result = InvestigationResult(
             incident_id=incident.incident_id, status="INSUFFICIENT_EVIDENCE",
             reasoning="No comparable verified recovery sequence was found; investigate manually.",

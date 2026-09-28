@@ -1,0 +1,14 @@
+{
+  "incident": {
+    "incident_id": "PARTIAL-001",
+    "service": "customer-service",
+    "severity": "HIGH",
+    "symptoms": ["transaction failed", "invalid customer PIN state"],
+    "error_code": "PIN_STATE_INVALID",
+    "environment": "production",
+    "transaction_id": "SYN-TXN-PARTIAL"
+  },
+  "operation_id": "SYN-TXN-PARTIAL",
+  "required_action": "reset_customer_pin",
+  "retry_succeeds": false
+}

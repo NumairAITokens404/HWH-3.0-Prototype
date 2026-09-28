@@ -11,11 +11,14 @@ from services.remediation_service import remediate_and_retry
 from services.verification_service import verify_recovery
 from tools.risk_classifier import classify_action
 from tools.simulation import SimulationWorld
+from llm.client import StructuredLLM
+from agents.llm_investigator import LLMInvestigator
 
 
-def investigate_incident(incident: Incident, client: HindsightClient) -> InvestigationResult:
+def investigate_incident(incident: Incident, client: HindsightClient, llm: StructuredLLM | None = None) -> InvestigationResult:
     """Return a structured recommendation; never execute or persist an action."""
-    return IncidentInvestigator(RemediationMemory(client)).investigate(incident)
+    memory = RemediationMemory(client)
+    return (LLMInvestigator(memory, llm) if llm is not None else IncidentInvestigator(memory)).investigate(incident)
 
 
 class IncidentWorkflow:
@@ -25,9 +28,10 @@ class IncidentWorkflow:
     This class is synchronous and is not a durable or concurrent job runner.
     """
 
-    def __init__(self, client: HindsightClient, world: SimulationWorld):
+    def __init__(self, client: HindsightClient, world: SimulationWorld, llm: StructuredLLM | None = None):
         self.client = client
         self.world = world
+        self.llm = llm
         self._pending: dict[str, InvestigationResult] = {}
         self._completed: dict[str, tuple[WorkflowResult, IncidentMemory]] = {}
 
@@ -43,7 +47,7 @@ class IncidentWorkflow:
         if self.client.get_incident_memory(key) is not None:
             raise ValueError("Incident already exists in memory; use a new incident ID")
         if key not in self._pending:
-            self._pending[key] = investigate_incident(incident, self.client)
+            self._pending[key] = investigate_incident(incident, self.client, self.llm)
         investigation = self._pending[key]
         result = WorkflowResult(incident_id=key, status="INSUFFICIENT_EVIDENCE", investigation=investigation)
         action = investigation.recommended_action

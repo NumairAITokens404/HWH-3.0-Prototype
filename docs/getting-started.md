@@ -2,71 +2,64 @@
 
 [Documentation index](README.md)
 
-## Setup and run
+## Setup
 
-Use Python 3.10 or newer. Tested locally with Python 3.13 and Pydantic 2.13.5. Install dependencies once; default mock mode runs offline without API keys. For optional persistent memory, follow [Hindsight setup](hindsight-setup.md).
-
-### Windows PowerShell
+Use Python 3.10 or newer. The rules engine and mock or SQLite memory need no API key. The local model path also needs Ollama and `qwen3.5:9b`.
 
 ```powershell
 python -m venv .venv
 .venv\Scripts\python.exe -m pip install -r requirements.txt
-.venv\Scripts\python.exe main.py
-.venv\Scripts\python.exe -m unittest discover -s tests -v
+Copy-Item .env.example .env
 ```
 
-### macOS / Linux
+For the full local stack, set these values in `.env`:
 
-```bash
-python3 -m venv .venv
-.venv/bin/python -m pip install -r requirements.txt
-.venv/bin/python main.py
-.venv/bin/python -m unittest discover -s tests -v
+```dotenv
+MEMORY_BACKEND=sqlite
+SQLITE_PATH=./.runtime/incidents.sqlite3
+LLM_PROVIDER=ollama
+LLM_MODEL=qwen3.5:9b
+LLM_CONTEXT=8192
 ```
 
-If virtual-environment creation cannot bootstrap pip but creates its Python executable, an existing system pip can install the dependencies with:
+The application loads `.env` automatically. Existing shell variables take precedence. Relative data and database paths resolve from the project root.
+
+## Choose a run mode
 
 ```powershell
-python -m pip --python .venv\Scripts\python.exe install -r requirements.txt
+# Full local demo: Ollama + durable SQLite memory
+ollama pull qwen3.5:9b
+.venv\Scripts\python.exe -m llm.check --generate
+.venv\Scripts\python.exe main.py
+
+# Fast deterministic demo: no model or persistent database
+.venv\Scripts\python.exe main.py --engine rules --memory mock
+
+# Read-only investigation from JSON
+.venv\Scripts\python.exe main.py investigate --input data/examples/incident.json
+
+# Simulated high-risk workflow with a terminal approval decision
+.venv\Scripts\python.exe main.py run --input data/examples/high-risk-scenario.json --memory mock --interactive
+
+# Simulated partial recovery after a failed retry
+.venv\Scripts\python.exe main.py run --input data/examples/failed-retry-scenario.json --memory mock
 ```
 
-Configuration comes from `INCIDENT_DATA_DIR`, which defaults to the `data/` directory beside `config.py`. Relative overrides resolve against the current working directory. `.env.example` documents the variable; the application does not automatically load `.env` files.
+The demo runs two low-risk recoveries and one high-risk approval pause. Persistent demo IDs are generated automatically. Custom scenarios need unique incident IDs when stored in SQLite.
 
-## Current demonstration
+## Approval boundary
 
-`main.py` seeds historical memory and runs three explicit simulation scenarios. The investigator receives incident inputs, not simulator truth or expected-answer labels.
+The terminal asks for a reviewer only when `--interactive` is present. The reviewer must type `APPROVE`; otherwise the workflow stops without executing the action. Approval is bound to the incident, action, risk level, and policy rule. This prototype trusts the supplied reviewer name and does not provide user authentication.
 
-```text
-DEMO-001: SUCCESS; memory_stored=True
-  Recommendation: reset_customer_pin
-  Evidence: INC-101, INC-102
-DEMO-002: SUCCESS; memory_stored=True
-  Recommendation: reset_customer_pin
-  Evidence: DEMO-001, INC-101, INC-102
-DEMO-003: HUMAN_APPROVAL_REQUIRED; memory_stored=False
-  Recommendation: rollback_connection_pool_change
+## Verify and evaluate
+
+```powershell
+.venv\Scripts\python.exe -m unittest discover -s tests -v
+.venv\Scripts\python.exe -m evaluation.evaluate_memory --engine rules --output reports/local-rules.json
+.venv\Scripts\python.exe -m evaluation.evaluate_memory --engine ollama --output reports/local-ollama.json
+ollama ps
 ```
 
-The demo never fabricates human approval. To inspect the full JSON result in a Python integration, call `result.model_dump_json(indent=2)` on the returned `WorkflowResult`.
+Generated reports and the `.runtime/` SQLite database are local artifacts ignored by Git. See [local model setup](local-model.md) and [evaluation](phase-6-evaluation.md) for details.
 
-## Service API and approval
-
-Construct `IncidentWorkflow(client, world)` with seeded memory and a `SimulationWorld` containing explicit `SimulationScenario` records. Each scenario identifies its incident, operation, and required fix. Optional flags let tests independently control tool success, health, and operation recovery.
-
-```python
-from schemas.workflow import Approval
-
-result = workflow.run(incident)
-# Call this branch only after your caller has obtained a real review decision.
-if result.status == "HUMAN_APPROVAL_REQUIRED":
-    approval = Approval(
-        request_id=result.decision.request_id,
-        approved=reviewer_approved,
-        reviewer=reviewer_name,
-    )
-    result = workflow.run(incident, approval)
-```
-
-Here `workflow`, `incident`, `reviewer_approved`, and `reviewer_name` are inputs supplied by the integrating application. This is an API example, not an automatic approval script. Approval is bound to the full incident, recommendation, and policy rule. The local prototype trusts reviewer inputs; it does not authenticate users.
-
-Reuse the same workflow instance to resume approvals or repeat calls. Completed results are cached, and a failed memory write can be retried without rerunning actions. This guarantee is limited to the synchronous in-process instance. Workflow state is lost on exit. Mock incident memory also resets; the optional real adapter uses server-side source records.
+All action tools, observations, incidents, and recovery results are simulated or synthetic.

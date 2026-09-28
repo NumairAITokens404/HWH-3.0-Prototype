@@ -28,7 +28,7 @@ The public memory contract and simulator remain separate. Hindsight adds persist
 
 ## Verification
 
-The full suite passes **50 tests**, including the 12 new tests. The offline demo still passes. A local connection check failed cleanly because there is no running service. Offline transport tests do not prove that server-side extraction, indexing, or restart persistence works.
+The adapter remains covered by 12 offline contract tests inside the current full suite. A local connection check failed cleanly because there is no running service. Offline transport tests do not prove that server-side extraction, indexing, or restart persistence works.
 
 Run the [write/read probe](hindsight-setup.md) against a configured service to complete live verification. Retain and recall may invoke the server's configured models.
 

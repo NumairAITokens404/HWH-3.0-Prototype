@@ -7,6 +7,7 @@ from pydantic import Field
 from schemas.incident import NonEmpty, Schema
 from schemas.outcome import Outcome
 from schemas.remediation import RemediationAction
+from schemas.llm import LLMProposal
 
 
 class HistoricalEvidence(Schema):
@@ -38,4 +39,8 @@ class InvestigationResult(Schema):
     historical_evidence: list[HistoricalEvidence] = Field(default_factory=list)
     action_summary: list[ActionSummary] = Field(default_factory=list)
     execution_authorized: Literal[False] = False
-    method: Literal["deterministic_history_baseline"] = "deterministic_history_baseline"
+    method: Literal["deterministic_history_baseline", "llm_grounded", "deterministic_fallback"] = "deterministic_history_baseline"
+    model_proposal: LLMProposal | None = None
+    model_name: str | None = None
+    fallback_reason: str | None = None
+    llm_latency_ms: float | None = Field(default=None, ge=0)

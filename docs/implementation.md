@@ -7,6 +7,7 @@
 | File(s) | Responsibility |
 | --- | --- |
 | `agents/incident_investigator.py` | Recommend a historically supported fix or abstain. |
+| `agents/llm_investigator.py` | Validate model proposals against retrieved IDs and the deterministic recommendation. |
 | `agents/remediation_memory.py` | Filter comparable history and count ordered outcomes. |
 | `agents/auto_remediation.py` | Call the authorized simulated remediation tool. |
 | `agents/reprocessing.py` | Retry the failed operation after remediation. |
@@ -18,8 +19,9 @@
 | `tools/remediation_tools.py` | Recheck permission before mock execution. |
 | `tools/reprocessing_tools.py` | Retry entry point with a remediation prerequisite. |
 | `tools/simulation.py` | Own explicit scenario truth and mutable local operation state. |
-| `tools/incident_tools.py` | Reserved placeholder for future incident inspection helpers. |
-| `memory/hindsight_adapter.py`, `memory/factory.py` | Real SDK adapter and explicit backend selection; live verification pending. |
+| `tools/incident_tools.py` | Validate and load incident or simulation-scenario JSON. |
+| `memory/hindsight_adapter.py`, `memory/factory.py` | Real SDK adapter and explicit mock/SQLite/Hindsight backend selection. |
+| `memory/sqlite_client.py` | Durable Docker-free local memory with transactional, idempotent writes. |
 | `memory/check_hindsight.py` | Connection and persistent write/read probe. |
 | `tests/test_hindsight_adapter.py` | 12 offline adapter and SDK contract tests. |
 | `memory/hindsight_client.py` | Memory protocol and local in-memory implementation. |
@@ -34,9 +36,11 @@
 | `tests/test_phase_one.py` | Foundation behavior: 11 tests. |
 | `tests/test_investigation.py` | Recommendation behavior: 11 tests. |
 | `tests/test_workflow.py` | Approval, execution, verification, and memory feedback: 16 tests. |
-| `evaluation/evaluate_memory.py`, `evaluation/metrics.py` | Future measured evaluation; placeholders. |
-| `config.py`, `.env.example` | Data-directory configuration. |
-| `main.py` | Two simulated recoveries and one high-risk approval pause. |
+| `llm/client.py`, `llm/prompts.py` | Bounded Ollama structured output and the evidence-only prompt. |
+| `schemas/llm.py` | Strict model proposal contract, separate from authorization. |
+| `evaluation/evaluate_memory.py`, `evaluation/metrics.py` | Isolated with/without-memory comparison, safety challenges, and metrics. |
+| `config.py`, `.env.example` | Automatic `.env` loading and validated memory/model configuration. |
+| `cli.py`, `main.py` | Demo, investigate, scenario run, JSON output, and interactive approval. |
 | `requirements.txt`, `.gitignore`, `__init__.py` files | Dependencies, ignored artifacts, and package structure. |
 | `README.md`, `docs/` | Project overview and phase/technical documentation. |
 
