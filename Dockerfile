@@ -9,7 +9,11 @@ COPY requirements.txt requirements-hindsight.txt ./
 RUN python -m pip install --no-cache-dir -r requirements-hindsight.txt
 
 COPY . .
-RUN mkdir -p /app/.runtime
+RUN addgroup --system app && adduser --system --ingroup app app \
+    && mkdir -p /app/.runtime \
+    && chown -R app:app /app
+
+USER app
 
 EXPOSE 8000
 

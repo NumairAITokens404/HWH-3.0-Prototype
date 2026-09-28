@@ -1,6 +1,6 @@
 """FastAPI application factory for UI and demo integrations."""
 
-from fastapi import FastAPI, File, HTTPException, Query, UploadFile
+from fastapi import FastAPI, File, Header, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.concurrency import run_in_threadpool
 
@@ -14,6 +14,7 @@ from schemas.ingestion import FailedRemediationSearchResult, IngestionResult
 from schemas.investigation import InvestigationResult
 from schemas.workflow import WorkflowResult
 from services.ingestion_service import IngestionValidationError, SUPPORTED_EXTENSIONS
+from services.approval_auth import ApprovalAuthenticationError, ApprovalAuthenticator
 
 
 def create_app(settings: Settings | None = None, runtime: ApiRuntime | None = None) -> FastAPI:
@@ -22,8 +23,10 @@ def create_app(settings: Settings | None = None, runtime: ApiRuntime | None = No
     app = FastAPI(title="Adaptive Incident Intelligence API", version="0.1.0",
                   description="Typed API for investigation and policy-controlled recovery workflows.")
     app.state.runtime = runtime
+    approval_auth = ApprovalAuthenticator(settings.approval_credentials)
     app.add_middleware(CORSMiddleware, allow_origins=list(settings.api_cors_origins),
-                       allow_credentials=False, allow_methods=["GET", "POST"], allow_headers=["Content-Type"])
+                       allow_credentials=False, allow_methods=["GET", "POST"],
+                       allow_headers=["Content-Type", "Authorization"])
 
     def domain_error(exc: Exception):
         if isinstance(exc, IngestionValidationError):
@@ -49,7 +52,8 @@ def create_app(settings: Settings | None = None, runtime: ApiRuntime | None = No
                                   live_hindsight=settings.memory_backend == "hindsight",
                                   embedding_provider="hindsight" if settings.memory_backend == "hindsight" else "none",
                                   action_backend=settings.action_backend,
-                                  simulated_actions=settings.action_backend == "simulation")
+                                  simulated_actions=settings.action_backend == "simulation",
+                                  authenticated_approvals=approval_auth.enabled)
 
     @app.post("/api/memory/uploads", response_model=IngestionResult, status_code=201, tags=["memory"])
     async def upload_memory(file: UploadFile = File(...)):
@@ -94,9 +98,13 @@ def create_app(settings: Settings | None = None, runtime: ApiRuntime | None = No
             domain_error(exc)
 
     @app.post("/api/demo/workflows/{incident_id}/approval", response_model=WorkflowResult, tags=["demo"])
-    def approve_demo(incident_id: str, submission: ApprovalSubmission):
+    def approve_demo(incident_id: str, submission: ApprovalSubmission,
+                     authorization: str | None = Header(default=None)):
         try:
-            return runtime.submit_approval(incident_id, submission)
+            reviewer = approval_auth.authenticate(authorization, submission.reviewer)
+            return runtime.submit_approval(incident_id, submission, reviewer=reviewer)
+        except ApprovalAuthenticationError as exc:
+            raise HTTPException(status_code=401, detail=str(exc), headers={"WWW-Authenticate": "Bearer"}) from exc
         except (ValueError, KeyError, RuntimeError, HindsightUnavailable) as exc:
             domain_error(exc)
 

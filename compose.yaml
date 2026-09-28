@@ -20,6 +20,7 @@ services:
       HINDSIGHT_BANK_ID: ${HINDSIGHT_BANK_ID:-adaptive-incident-intelligence}
       HINDSIGHT_API_KEY: ${HINDSIGHT_API_KEY:-}
       API_CORS_ORIGINS: ${API_CORS_ORIGINS:-http://localhost:5173,http://127.0.0.1:5173}
+      APPROVAL_IDENTITIES_JSON: ${APPROVAL_IDENTITIES_JSON:-{}}
     volumes:
       - adaptive-runtime:/app/.runtime
     extra_hosts:

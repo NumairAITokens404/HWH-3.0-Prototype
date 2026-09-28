@@ -1,0 +1,47 @@
+{
+  "generated_at": "2026-09-28T10:34:26.781750+00:00",
+  "dataset_kind": "synthetic_prototype",
+  "counts": {
+    "historical_incidents": 18,
+    "held_out_cases": 6,
+    "outcomes": 54
+  },
+  "history_services": {
+    "catalog-service": 3,
+    "customer-service": 3,
+    "database-service": 3,
+    "fulfillment-service": 3,
+    "payment-service": 3,
+    "queue-service": 3
+  },
+  "held_out_services": {
+    "catalog-service": 1,
+    "customer-service": 1,
+    "database-service": 1,
+    "fulfillment-service": 1,
+    "payment-service": 1,
+    "queue-service": 1
+  },
+  "outcomes_by_result": {
+    "FAILED": 18,
+    "SUCCESS": 36
+  },
+  "checks": {
+    "history_and_test_ids_disjoint": true,
+    "all_test_references_exist": true,
+    "every_history_record_has_failure_and_success": true,
+    "every_history_service_has_test_coverage": true,
+    "balanced_history_services": true
+  },
+  "passed": true,
+  "sha256": {
+    "incidents.json": "6865b63807b53eed332c24a8ffc2ce5fe581599f5a0e62a1f7911a293f780027",
+    "remediation_history.json": "50207314290be086b4edab49949a0c99b6aee71aa2bc2c3f897d65122e858cd1",
+    "test_incidents.json": "1d4e6e6a327ccf0cd9d1b82a1259438507d9e836969065e9ee03830abdd86fa2"
+  },
+  "limitations": [
+    "Synthetic fixtures cover six known incident families.",
+    "Six held-out cases are sufficient for deterministic regression, not statistical claims.",
+    "Production validation requires de-identified real incidents and blinded labels."
+  ]
+}

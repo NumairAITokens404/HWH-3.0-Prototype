@@ -16,6 +16,7 @@
 | [Phase 7: ingestion](phase-7-ingestion.md) | JSON uploads, validation, failed-remediation chunks, and embedding boundaries |
 | [Phase 8: workflow persistence](phase-8-workflow-persistence.md) | Restart-safe approvals, execution checkpoints, audit history, and Docker storage |
 | [Phase 9: sandbox connectors](phase-9-connectors.md) | Allowlisted HTTP execution, durable idempotency receipts, and reconciliation boundaries |
+| [Phase 10: checkpoint hardening](phase-10-checkpoint.md) | Authenticated approvals, dataset audit, and container checks |
 | [Local model setup](local-model.md) | Qwen3.5 9B, Ollama, GPU checks, and CLI commands |
 | [HTTP API](api.md) | FastAPI startup, UI endpoints, approval lifecycle, and boundaries |
 | [Hindsight setup](hindsight-setup.md) | Service configuration and cross-process persistence checks |

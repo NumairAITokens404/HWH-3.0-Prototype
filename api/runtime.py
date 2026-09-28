@@ -162,16 +162,20 @@ class ApiRuntime:
             self._audit_start(scenario, result)
             return result
 
-    def submit_approval(self, incident_id: str, submission: ApprovalSubmission) -> WorkflowResult:
+    def submit_approval(self, incident_id: str, submission: ApprovalSubmission,
+                        reviewer: str | None = None) -> WorkflowResult:
         with self._lock:
+            reviewer = reviewer or submission.reviewer
+            if not reviewer:
+                raise ValueError("Reviewer is required")
             run = self._runs.get(incident_id)
             if run is None:
                 raise KeyError("Unknown or expired demo workflow")
             approval = Approval(request_id=submission.request_id, approved=submission.approved,
-                                reviewer=submission.reviewer)
+                                reviewer=reviewer)
             self.workflow_store.append_event(incident_id, "APPROVAL_SUBMITTED", {
                 "request_id": submission.request_id, "approved": submission.approved,
-                "reviewer": submission.reviewer,
+                "reviewer": reviewer,
             })
             persisted = self.workflow_store.get_run(incident_id)
             expected = persisted.result.decision.request_id if persisted and persisted.result.decision else None
@@ -186,10 +190,10 @@ class ApiRuntime:
                 return result
             if result.status == "DENIED":
                 state = "DENIED"
-                self.workflow_store.append_event(incident_id, "DENIED", {"reviewer": submission.reviewer})
+                self.workflow_store.append_event(incident_id, "DENIED", {"reviewer": reviewer})
             else:
                 state = "COMPLETED" if result.status in {"SUCCESS", "FAILED", "PARTIAL"} else "TERMINAL"
-                self.workflow_store.append_event(incident_id, "APPROVED", {"reviewer": submission.reviewer})
+                self.workflow_store.append_event(incident_id, "APPROVED", {"reviewer": reviewer})
                 self._audit_execution(result)
             self.workflow_store.save_run(run.scenario, result, state)
             if result.status != "BLOCKED":

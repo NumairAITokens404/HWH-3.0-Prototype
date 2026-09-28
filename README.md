@@ -54,6 +54,7 @@ The LLM proposes and explains. Python owns citation checks, action support, risk
 - **Hindsight-ready:** the official SDK adapter, backend selection, and offline contract tests are implemented. A live Hindsight service remains optional.
 - **History ingestion:** validated JSON, CSV, Markdown, logs, and text-based PDFs preserve complete records and create searchable failed-remediation chunks; Hindsight handles embeddings when configured.
 - **Durable control plane:** pending approvals and audit events persist in SQLite, including a pre-execution checkpoint that prevents automatic duplicate actions after an interrupted run.
+- **Authenticated approvals:** optional bearer credentials derive the reviewer identity on the server and reject browser-supplied identity spoofing.
 - **Sandbox connector boundary:** approved actions can use a fixed HTTP sandbox with durable at-most-once receipts; simulation remains the default.
 - **Complete simulated loop:** investigation, policy checks, human approval pause/resume, remediation, retry, independent verification, and memory feedback.
 - **Structured and guarded:** Pydantic validates every input and model proposal; malformed, truncated, unsupported, or uncited output is rejected or disclosed as fallback.
@@ -117,6 +118,9 @@ Useful commands:
 # Reproduce the local evaluation
 .venv\Scripts\python.exe -m evaluation.evaluate_memory --engine ollama --output reports/local-ollama.json
 
+# Verify dataset balance, split integrity, and exact fixture hashes
+.venv\Scripts\python.exe -m evaluation.dataset_audit --output reports/dataset-audit.json
+
 # Run all tests
 .venv\Scripts\python.exe -m unittest discover -s tests -v
 
@@ -139,6 +143,7 @@ All actions, service checks, incidents, and outcomes in this repository are simu
 - [File ingestion and failed-remediation memory](docs/phase-7-ingestion.md)
 - [Workflow persistence and Docker storage](docs/phase-8-workflow-persistence.md)
 - [Sandbox connectors and idempotency](docs/phase-9-connectors.md)
+- [Checkpoint hardening](docs/phase-10-checkpoint.md)
 - [Implementation reference](docs/implementation.md)
 - [Optional Hindsight setup](docs/hindsight-setup.md)
 - [Build phases](docs/README.md)

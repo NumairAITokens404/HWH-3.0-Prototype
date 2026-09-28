@@ -29,6 +29,7 @@ class ApiTests(unittest.TestCase):
         self.assertFalse(capabilities["persistent_memory"])
         self.assertTrue(capabilities["file_ingestion"])
         self.assertEqual(capabilities["embedding_provider"], "none")
+        self.assertFalse(capabilities["authenticated_approvals"])
         paths = self.client.get("/openapi.json").json()["paths"]
         self.assertIn("/api/incidents/investigate", paths)
         cors = self.client.options("/api/health", headers={"Origin": "http://localhost:5173",
@@ -115,6 +116,36 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(denied.json()["status"], "DENIED")
         self.assertEqual(self.client.post(path, json={"request_id": body["decision"]["request_id"],
                                                       "approved": True, "reviewer": "operator"}).status_code, 404)
+
+    def test_authenticated_approval_derives_reviewer_from_bearer_token(self):
+        settings = Settings(data_dir=ROOT / "data", approval_credentials=(("alice", "secret-token"),))
+        runtime = ApiRuntime(settings)
+        client = TestClient(create_app(settings, runtime))
+        self.assertTrue(client.get("/api/capabilities").json()["authenticated_approvals"])
+        body = client.post("/api/demo/workflows", json={"scenario": "high-risk-approval"}).json()
+        path = f"/api/demo/workflows/{body['incident_id']}/approval"
+        payload = {"request_id": body["decision"]["request_id"], "approved": True}
+        self.assertEqual(client.post(path, json=payload).status_code, 401)
+        self.assertEqual(client.post(path, json=payload,
+                                     headers={"Authorization": "Bearer wrong"}).status_code, 401)
+        approved = client.post(path, json=payload,
+                               headers={"Authorization": "Bearer secret-token"})
+        self.assertEqual(approved.status_code, 200)
+        self.assertEqual(approved.json()["approval"]["reviewer"], "alice")
+        events = runtime.workflow_store.events_for(body["incident_id"])
+        submitted = next(event for event in events if event.event_type == "APPROVAL_SUBMITTED")
+        self.assertEqual(submitted.details["reviewer"], "alice")
+
+    def test_authenticated_approval_rejects_spoofed_reviewer(self):
+        settings = Settings(data_dir=ROOT / "data", approval_credentials=(("alice", "secret-token"),))
+        runtime = ApiRuntime(settings)
+        client = TestClient(create_app(settings, runtime))
+        body = client.post("/api/demo/workflows", json={"scenario": "high-risk-approval"}).json()
+        response = client.post(f"/api/demo/workflows/{body['incident_id']}/approval",
+                               json={"request_id": body["decision"]["request_id"], "approved": True,
+                                     "reviewer": "admin"},
+                               headers={"Authorization": "Bearer secret-token"})
+        self.assertEqual(response.status_code, 401)
 
     def test_unknown_workflow_and_scenario_are_rejected(self):
         missing = self.client.post("/api/demo/workflows/missing/approval",

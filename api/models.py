@@ -31,6 +31,7 @@ class CapabilityResponse(Schema):
     embedding_provider: Literal["hindsight", "none"]
     action_backend: Literal["simulation", "connector"]
     simulated_actions: bool
+    authenticated_approvals: bool
 
 
 class DemoScenarioInfo(Schema):
@@ -47,4 +48,4 @@ class DemoWorkflowRequest(Schema):
 class ApprovalSubmission(Schema):
     request_id: NonEmpty
     approved: bool
-    reviewer: NonEmpty = Field(max_length=200)
+    reviewer: NonEmpty | None = Field(default=None, max_length=200)
