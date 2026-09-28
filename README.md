@@ -1,175 +1,124 @@
 # Adaptive Incident Intelligence
 
-Incident intelligence, simulated remediation, and reprocessing with shared incident memory.
+### Remember what failed. Recommend what worked. Verify recovery.
 
-## Status: Phase 1
+A proposed incident-response system that uses past experience to help engineers investigate failures, choose a fix, and recover failed operations. **Hindsight is the planned shared memory at the center of the system.**
 
-Phase 1 implements the Python project structure, Pydantic schemas, synthetic datasets, and a local mock Hindsight interface. Run `main.py` to validate the fixtures and exercise memory retrieval and outcome write-back.
+## The problem
 
-Agents, LLM integration, risk classification, action execution, reprocessing, outcome verification, and performance evaluation are reserved for later phases. Their modules are explicit placeholders. There is no frontend or production integration.
+A transaction fails. A queue stops processing. A service becomes unavailable.
 
-## Target architecture
+Engineers must find the cause, decide what to change, and recover the affected work. A similar incident may already have been solved, but its lessons are scattered across tickets, logs, and individual memory. Teams can repeat a failed fix or retry a transaction before addressing the reason it failed.
 
-The planned workflow is:
+**Our problem statement: How can each incident help a team resolve the next similar incident with better evidence and fewer repeated mistakes?**
+
+## Our solution
+
+Adaptive Incident Intelligence connects investigation, controlled remediation, and recovery in one learning loop:
+
+- **Recall experience:** find similar incidents, including fixes that failed.
+- **Recommend with evidence:** explain the likely cause and suggested action using past outcomes.
+- **Control execution:** automatically run allowed low-risk actions; require human approval for higher-risk changes.
+- **Recover the work:** retry the affected transaction, request, or job after remediation.
+- **Check and remember:** verify recovery and retain successful, failed, and partial outcomes.
+
+The intended users are incident-response engineers and service support teams. The goal is to reduce repeated troubleshooting and make recovery decisions easier to review.
+
+## Architecture
+
+**Target workflow** ? the investigation stage works today; execution and the complete learning loop are planned.
 
 ```text
-Incident / failure
-  -> Incident Investigator
-  -> Hindsight memory: similar incidents + failed/successful actions
-  -> Recommended action
-  -> Risk classification
-       LOW: simulated automatic execution
-       MEDIUM / HIGH: human approval required
-  -> Reprocessing
-  -> Outcome verification: SUCCESS / FAILED / PARTIAL
-  -> Hindsight outcome update
+Incident / Failure
+        |
+        v
+Incident Investigator <----> Hindsight Memory
+        |                    Past incidents, failed fixes,
+        |                    successful fixes, and outcomes
+        v
+Historical Similarity & Remediation Analysis
+        |
+        v
+Recommended Action + Supporting Evidence
+        |
+        v
+Action Decision Layer
+        |
+        +-- Allowed low-risk action ------------------+
+        |                                             |
+        +-- Medium / high risk --> Human approval ----+
+                                   |                  |
+                              If declined: stop       v
+                                             Auto Remediation Agent
+                                                      |
+                                            Remediation succeeds
+                                                      |
+                                                      v
+                                             Reprocessing Agent
+                                                      |
+                                                      v
+                                             Outcome Verification
+                                                      |
+                                          Resolved / Failed / Partial
+                                                      |
+                                                      v
+                                             Hindsight Memory Update
+                                                      |
+                                          Evidence for future incidents
 ```
 
-| Planned component | Responsibility |
+If remediation fails, its outcome is captured without starting reprocessing. Approval permits an action; verification determines whether recovery actually worked.
+
+| Role | Plain-language responsibility |
 | --- | --- |
-| Incident Investigator | Interpret the incident and synthesize a structured recommendation with evidence and confidence. Does not execute actions itself. |
-| Remediation Memory | Retrieve relevant incidents, root causes, successful fixes, and actions that previously failed. |
-| Outcome Verifier | Check whether remediation and reprocessing actually recovered the operation. |
-| Action decision layer | Classify actions and require approval for medium/high risk actions before execution. |
-| Remediation and reprocessing tools | Simulate allowed actions and retries for the hackathon. |
-| Hindsight memory adapter | Retain experiences so later investigations can retrieve their context and outcomes. |
+| **Incident Investigator** | Understand the failure, compare past responses, and recommend a fix. |
+| **Auto Remediation Agent** | Carry out actions allowed by the decision layer. |
+| **Reprocessing Agent** | Retry the failed operation after remediation. |
+| **Outcome Verification** | Check whether the issue and affected operation recovered. |
+| **Hindsight Memory** | Preserve what happened, what was tried, and what worked or failed. |
 
-PIN reset is a synthetic low-risk action in the sample dataset only. These labels do not authorize real security-sensitive operations. No actions are executed in Phase 1.
+## A concrete example
 
-## Project structure
+A customer transaction fails because of an inconsistent PIN state. Historical incidents contain this sequence:
 
-The repository root is the application root; no nested checkout or application directory is needed.
+| Attempt | Recorded result | Lesson |
+| --- | --- | --- |
+| Retry the transaction | Failed | Retrying alone did not address the problem. |
+| Reset the simulated PIN state | Succeeded | Address the state inconsistency first. |
+| Retry the transaction again | Succeeded | The order of actions matters. |
 
-```text
-agents/
-    incident_investigator.py       # Placeholder
-    remediation_memory.py         # Placeholder
-    outcome_verifier.py            # Placeholder
-memory/
-    hindsight_client.py           # Protocol + in-memory mock
-    memory_writer.py              # Dataset validation and historical seeding
-    memory_retriever.py            # Retrieval facade
-tools/                           # All modules are placeholders
-    incident_tools.py
-    remediation_tools.py
-    reprocessing_tools.py
-    risk_classifier.py
-services/                         # All modules are placeholders
-    incident_service.py
-    remediation_service.py
-    verification_service.py
-schemas/
-    incident.py                   # Incident and held-out evaluation case
-    remediation.py                # RemediationAction and risk level
-    outcome.py                    # Outcome and IncidentMemory
-data/
-    incidents.json
-    remediation_history.json
-    test_incidents.json
-evaluation/                      # Placeholder modules; no performance claims
-    evaluate_memory.py
-    metrics.py
-tests/
-    test_phase_one.py
-config.py
-main.py
-requirements.txt
-.env.example
-README.md
-```
+**The current demo recommends reviewing the PIN-state reset before reprocessing and cites the matching incidents.** The planned execution flow then applies the action policy, performs the simulated fix, retries the transaction, verifies recovery, and stores the outcome.
 
-## Setup and run
+## What makes this approach useful
 
-Use Python 3.10 or newer. Tested locally with Python 3.13 and Pydantic 2.13.5. Install dependencies once; the demo then runs offline without API keys.
+- **Failed fixes remain useful evidence.** The system retains what to avoid repeating, alongside successful responses.
+- **Action order is preserved.** A retry before remediation and a retry after remediation are treated in context.
+- **Recommendations are reviewable.** Engineers can inspect the historical incidents behind a suggestion.
+- **Uncertainty is visible.** The current investigator declines to recommend when evidence is missing or conflicting.
+- **Recovery closes the loop.** The target design checks the affected operation and feeds the observed result back into memory.
 
-### Windows PowerShell
+## What works today
 
-```powershell
-python -m venv .venv
-.venv\Scripts\python.exe -m pip install -r requirements.txt
-.venv\Scripts\python.exe main.py
-.venv\Scripts\python.exe -m unittest discover -s tests -v
-```
+The working prototype runs locally and produces a structured recommendation with historical evidence. It includes:
 
-### macOS / Linux
+- **18 synthetic historical incidents**, **6 held-out cases**, and **54 recorded action outcomes** across six incident families.
+- A mock memory interface and a rule-based investigation baseline.
+- Tests for evidence handling, recommendations, conflicting history, and data integrity: **22 tests passed in the latest full run**.
+
+**Still to build:** real Hindsight integration, LLM reasoning, approval enforcement, simulated execution, reprocessing, and automatic verification/write-back. The current demo executes no actions. Recovery-time savings and production accuracy have not yet been measured.
+
+## Try the prototype
+
+Follow the [setup and demo instructions](docs/getting-started.md). Once dependencies are installed, run:
 
 ```bash
-python3 -m venv .venv
-.venv/bin/python -m pip install -r requirements.txt
-.venv/bin/python main.py
-.venv/bin/python -m unittest discover -s tests -v
+python main.py
 ```
 
-If virtual-environment creation cannot bootstrap pip but creates its Python executable, an existing system pip can install the dependencies with:
+The output shows the likely root cause, recommended action, supporting incident histories, and a confidence heuristic. All demo data is synthetic; no production connection or API key is needed.
 
-```powershell
-python -m pip --python .venv\Scripts\python.exe install -r requirements.txt
-```
+## How we will measure success
 
-Configuration comes from `INCIDENT_DATA_DIR`, which defaults to the `data/` directory beside `config.py`. Relative overrides resolve against the current working directory. `.env.example` documents the variable; Phase 1 does not automatically load `.env` files.
+Compare recommendations **with and without incident memory** on held-out cases: correct fixes, repeated failed actions, troubleshooting steps, root-cause accuracy, and retrieval relevance. These measurements will test whether remembered experience improves decisions.
 
-## Data contracts
-
-- **Incident:** ID, service, severity, symptoms, environment, and optional error details, customer/transaction/job IDs, and recent change.
-- **RemediationAction:** action name, description, risk level (`LOW`, `MEDIUM`, `HIGH`), reason, and confidence between 0 and 1.
-- **Outcome:** unique outcome ID within an incident, incident ID, action, result (`SUCCESS`, `FAILED`, `PARTIAL`), optional reprocessing result, lesson, risk level, verification flag, and optional resolution time.
-- **IncidentMemory:** incident, optional root cause and recommendation, ordered outcomes, and optional final resolution.
-- **EvaluationCase:** held-out incident plus expected root cause, recommended action, relevant historical IDs, and actions to avoid before remediation. Labels are kept outside the incident input.
-
-Schemas reject unknown fields, empty required strings, invalid enum values, mismatched outcome incident IDs, duplicate outcome IDs within a record, and invalid confidence or duration values.
-
-## Synthetic dataset
-
-There are **18 historical incidents and 6 held-out cases**, spanning:
-
-1. Customer PIN / master-data inconsistency.
-2. Payment provider routing failure.
-3. Database connection exhaustion.
-4. Queue processing failure.
-5. Catalog cache inconsistency.
-6. Downstream service timeout.
-
-Each family has three historical incidents and one held-out case. Historical records contain an initial failed retry, a successful remediation, and a successful retry after remediation: **54 ordered action outcomes** in total. All incidents, identifiers, outcomes, and durations are synthetic fixtures, not observed production results.
-
-`incidents.json` contains historical inputs. `remediation_history.json` pairs those inputs with root causes, actions, and resolutions. `test_incidents.json` contains evaluation inputs and labels and is never passed to historical seeding. The loader checks matching IDs/content, valid references, and separation between history and held-out inputs.
-
-## Mock Hindsight interface
-
-`HindsightClient` is an application-owned Python protocol with five operations:
-
-- `store_incident_memory(memory)`
-- `retrieve_similar_incidents(incident, limit=5)`
-- `store_remediation_outcome(outcome)`
-- `retrieve_failed_actions(incident_id)`
-- `retrieve_successful_actions(incident_id)`
-
-`MockHindsightClient` implements this contract locally. These names are not claims about methods in the real Hindsight SDK. The adapter file marks the future integration point explicitly.
-
-Retrieval ranks records using service match (0.4), error-code match (0.3), symptom-token Jaccard overlap (0.2), and environment match (0.1). Environment alone cannot produce a match. Results exclude the query's own ID, break ties by incident ID, and include complete histories, including failed and partial outcomes. The similarity score is a deterministic mock ranking score, not calibrated confidence or semantic relevance.
-
-Identical writes are idempotent. Conflicting incident or outcome IDs raise an error instead of silently overwriting history. Outcome writes require an existing incident. Returned records are defensive copies. Memory lasts for one client instance; nothing is persisted across process restarts or written back to the fixture files.
-
-### Phase 1 demonstration
-
-Running `main.py` validates all three datasets, seeds only historical records, and queries the held-out customer PIN incident. Its output includes:
-
-```text
-Phase 1: validated 18 historical incidents and 6 held-out cases.
-Mock retrieval for TEST-001 (customer-service):
-  INC-101: similarity=1.000
-    reprocess_transaction: FAILED ...
-    reset_customer_pin: SUCCESS ...
-    reprocess_transaction: SUCCESS ...
-```
-
-The demo then stores a clearly marked synthetic failed outcome and reads it back. This exercises the memory contract; it does not recommend or execute a remediation, verify recovery, or demonstrate measured agent improvement.
-
-## Verification and later evaluation
-
-The Phase 1 tests cover schema constraints, dataset integrity, held-out separation, retrieval for all six families, ordered successful/failed actions, outcome write/read, duplicate conflicts, unknown IDs, empty/unrelated queries, deterministic ranking, and copy isolation.
-
-Later evaluation will compare recommendations with and without historical memory, measuring correct remediation, repeated failed actions, troubleshooting steps, root-cause accuracy, and retrieval relevance. The evaluation modules are placeholders, and no final performance numbers are claimed.
-
-## Next phase
-
-Implement the Remediation Memory and Incident Investigator agents against the existing contracts, using a configurable LLM client and structured outputs. Subsequent phases can add deterministic risk classification, simulated remediation, reprocessing, explicit verification, and the full learning loop. Phase 1 stops before this work.
+[Architecture details](docs/architecture.md) ? [Build phases](docs/roadmap.md) ? [Technical documentation](docs/README.md)
