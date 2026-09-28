@@ -11,8 +11,10 @@ DemoScenarioName = Literal["low-risk-success", "high-risk-approval", "partial-re
 
 
 class HealthResponse(Schema):
-    status: Literal["ok"] = "ok"
+    status: Literal["ok", "degraded"] = "ok"
     memory_backend: NonEmpty
+    memory_ready: bool
+    detail: str | None = None
     llm_provider: NonEmpty
     model: str | None = None
     action_backend: Literal["simulation", "connector"]

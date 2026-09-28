@@ -54,6 +54,10 @@ For a hosted/authenticated service, additionally set `HINDSIGHT_API_KEY` through
 
 This prints the API version. It does not verify retention permissions or the server's model credentials; the next step does.
 
+Installing `hindsight-client` installs only the Python SDK. It does not start the Hindsight server. If the connection check fails and nothing is listening on port 8888, start the local container/service or configure a hosted `HINDSIGHT_BASE_URL` and key.
+
+The FastAPI process starts even while Hindsight is unavailable. In that state, `GET /api/health` returns `status: degraded` and `memory_ready: false`; upload and recall operations continue to fail explicitly until Hindsight becomes reachable. The application never silently substitutes SQLite or mock memory.
+
 ## 5. Verify persistence and recall
 
 Write one synthetic probe (this can consume server model credits):

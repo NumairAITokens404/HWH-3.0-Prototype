@@ -50,7 +50,9 @@ class ApiRuntime:
         _, history, self.cases = load_datasets(settings.data_dir)
         self.history = history
         self.memory = create_memory_client(settings)
-        seed_memory(self.memory, history)
+        # Do not contact a remote memory service while importing the ASGI app.
+        # Primary demo history is seeded only when a non-UI demo endpoint needs it.
+        self._primary_memory_seeded = False
         # The dashboard uses the configured backend in its own bank/database.
         # A reset rotates the namespace instead of pretending to erase Hindsight.
         self._ui_session = uuid4().hex[:12]
@@ -128,7 +130,22 @@ class ApiRuntime:
 
     def investigate(self, incident: Incident) -> InvestigationResult:
         with self._lock:
+            self._ensure_primary_memory()
             return investigate_incident(incident, self.memory, self.llm)
+
+    def _ensure_primary_memory(self) -> None:
+        if not self._primary_memory_seeded:
+            seed_memory(self.memory, self.history)
+            self._primary_memory_seeded = True
+
+    def memory_status(self) -> tuple[bool, str | None]:
+        if self.settings.memory_backend != "hindsight":
+            return True, None
+        try:
+            self.memory.check_connection()
+            return True, None
+        except Exception:
+            return False, "Hindsight is configured but unreachable; start it and verify HINDSIGHT_BASE_URL"
 
     def investigate_ui(self, incident: Incident) -> InvestigationResult:
         with self._lock:
@@ -328,6 +345,7 @@ class ApiRuntime:
 
     def start_demo(self, name: DemoScenarioName) -> WorkflowResult:
         with self._lock:
+            self._ensure_primary_memory()
             if len(self._runs) >= self.max_active_runs:
                 raise RuntimeError("Demo workflow capacity reached; restart the API to clear local state")
             scenario = self._scenario(name)

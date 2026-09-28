@@ -181,6 +181,8 @@ Run this from the project root:
 
 API documentation: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
 
+Readiness check: [http://127.0.0.1:8000/api/health](http://127.0.0.1:8000/api/health). When Hindsight is configured but offline, the API remains available and reports `status: degraded`; memory operations stay disabled until the service reconnects.
+
 ### 4. Start the dashboard
 
 In a second terminal:

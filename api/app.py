@@ -46,7 +46,10 @@ def create_app(settings: Settings | None = None, runtime: ApiRuntime | None = No
 
     @app.get("/api/health", response_model=HealthResponse, tags=["system"])
     def health():
-        return HealthResponse(memory_backend=settings.memory_backend, llm_provider=settings.llm_provider,
+        memory_ready, detail = runtime.memory_status()
+        return HealthResponse(status="ok" if memory_ready else "degraded",
+                              memory_backend=settings.memory_backend, memory_ready=memory_ready, detail=detail,
+                              llm_provider=settings.llm_provider,
                               model=settings.llm_model if settings.llm_provider == "ollama" else None,
                               action_backend=settings.action_backend,
                               simulated_actions=settings.action_backend == "simulation")
