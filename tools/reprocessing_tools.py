@@ -1,4 +1,9 @@
-"""Reserved for a later phase: reprocessing tools.
+"""Retry only after the simulator records successful remediation."""
 
-Phase 1 intentionally contains no implementation here.
-"""
+from schemas.incident import Incident
+from schemas.workflow import ToolResult
+from tools.simulation import SimulationWorld
+
+
+def reprocess_operation(incident: Incident, world: SimulationWorld) -> ToolResult:
+    return world.retry(incident)

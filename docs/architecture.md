@@ -22,13 +22,13 @@ Human approval authorizes a remediation; it does not itself fix the incident. Ap
 | Incident Investigator | `agents/incident_investigator.py` | Deterministic baseline implemented |
 | Historical similarity and remediation analysis | `agents/remediation_memory.py`, `memory/memory_retriever.py` | Implemented against mock memory |
 | Hindsight memory | `memory/hindsight_client.py`, `memory/memory_writer.py` | Protocol and local mock; real integration planned |
-| Action Decision Layer | `tools/risk_classifier.py` | Placeholder |
-| Auto Remediation Agent | Planned orchestration over `services/remediation_service.py` and `tools/remediation_tools.py` | Placeholders; dedicated agent module not yet created |
-| Reprocessing Agent | Planned orchestration over `tools/reprocessing_tools.py` | Placeholder; dedicated agent module not yet created |
-| Outcome Verification | `agents/outcome_verifier.py`, `services/verification_service.py` | Placeholders |
-| Memory update | Outcome storage contract in `memory/hindsight_client.py` | Mock write/read implemented; automatic verified-outcome loop planned |
+| Action Decision Layer | `tools/risk_classifier.py` | Implemented simulation allowlist and bound approvals |
+| Auto Remediation Agent | `agents/auto_remediation.py`, remediation service/tools | Implemented for local simulation |
+| Reprocessing Agent | `agents/reprocessing.py`, `tools/reprocessing_tools.py` | Implemented with remediation prerequisite |
+| Outcome Verification | `agents/outcome_verifier.py`, `services/verification_service.py` | Independent simulated health and operation checks |
+| Memory update | Outcome storage contract in `memory/hindsight_client.py` | Verified simulated outcomes written by `IncidentWorkflow` |
 
-The Remediation Memory module supports the investigator. It is distinct from the planned Auto Remediation Agent, which executes approved actions.
+The Remediation Memory module supports the investigator. It is distinct from the Auto Remediation Agent, which executes approved actions.
 
 ## Design principles
 
@@ -39,4 +39,12 @@ The Remediation Memory module supports the investigator. It is distinct from the
 - **Verify recovery:** a successful tool response alone is not proof that the failed operation recovered.
 - **Retain every outcome:** future memory should contain failures and partial recoveries as well as successful fixes.
 
-The hackathon's action tools will be simulated. PIN reset is labeled low risk only within the synthetic demo; it is not a production authorization policy.
+The hackathon's action tools are simulated. PIN reset is labeled low risk only within the synthetic demo; it is not a production authorization policy.
+
+## Simulation and execution boundaries
+
+`tools/simulation.py` owns explicit scenario state. It models tool acknowledgements separately from service health and operation recovery, so acknowledgements cannot establish success by themselves. The workflow returns SUCCESS when both checks pass, PARTIAL when only one passes, and FAILED when neither passes. Failed remediation skips reprocessing.
+
+`Outcome.tool_result` retains tool acknowledgements while `Outcome.result` retains the observed step outcome. `IncidentMemory.final_outcome` records overall recovery. Thus a failed retry can remain FAILED in action history while overall recovery is PARTIAL because the service itself recovered. Root causes written from investigations remain historical hypotheses, not independently established causes.
+
+Approval identities are trusted local inputs. The simulator is a test fixture, not a security boundary or production connector. Workflow state and duplicate protection are in-process, synchronous, and not durable across restarts.

@@ -32,23 +32,41 @@ python -m pip --python .venv\Scripts\python.exe install -r requirements.txt
 
 Configuration comes from `INCIDENT_DATA_DIR`, which defaults to the `data/` directory beside `config.py`. Relative overrides resolve against the current working directory. `.env.example` documents the variable; the application does not automatically load `.env` files.
 
-### Current demonstration
+## Current demonstration
 
-`main.py` validates datasets, seeds historical memory, and passes only the held-out incident input to `investigate_incident`. The customer PIN case produces these key fields, alongside complete ordered evidence and action counts:
+`main.py` seeds historical memory and runs three explicit simulation scenarios. The investigator receives incident inputs, not simulator truth or expected-answer labels.
 
-```json
-{
-  "incident_id": "TEST-001",
-  "status": "RECOMMENDATION_READY",
-  "likely_root_cause": "stale PIN master data",
-  "recommended_action": {
-    "action_name": "reset_customer_pin",
-    "risk_level": "LOW",
-    "confidence": 0.636
-  },
-  "execution_authorized": false,
-  "method": "deterministic_history_baseline"
-}
+```text
+DEMO-001: SUCCESS; memory_stored=True
+  Recommendation: reset_customer_pin
+  Evidence: INC-101, INC-102
+DEMO-002: SUCCESS; memory_stored=True
+  Recommendation: reset_customer_pin
+  Evidence: DEMO-001, INC-101, INC-102
+DEMO-003: HUMAN_APPROVAL_REQUIRED; memory_stored=False
+  Recommendation: rollback_connection_pool_change
 ```
 
-Evidence comes from `INC-101` and `INC-102`; the staging incident is excluded. Both show retry failure before the fix and retry success afterward. The demo does not execute actions or write inferred outcomes into memory.
+The demo never fabricates human approval. To inspect the full JSON result in a Python integration, call `result.model_dump_json(indent=2)` on the returned `WorkflowResult`.
+
+## Service API and approval
+
+Construct `IncidentWorkflow(client, world)` with seeded memory and a `SimulationWorld` containing explicit `SimulationScenario` records. Each scenario identifies its incident, operation, and required fix. Optional flags let tests independently control tool success, health, and operation recovery.
+
+```python
+from schemas.workflow import Approval
+
+result = workflow.run(incident)
+# Call this branch only after your caller has obtained a real review decision.
+if result.status == "HUMAN_APPROVAL_REQUIRED":
+    approval = Approval(
+        request_id=result.decision.request_id,
+        approved=reviewer_approved,
+        reviewer=reviewer_name,
+    )
+    result = workflow.run(incident, approval)
+```
+
+Here `workflow`, `incident`, `reviewer_approved`, and `reviewer_name` are inputs supplied by the integrating application. This is an API example, not an automatic approval script. Approval is bound to the full incident, recommendation, and policy rule. The local prototype trusts reviewer inputs; it does not authenticate users.
+
+Reuse the same workflow instance to resume approvals or repeat calls. Completed results are cached, and a failed memory write can be retried without rerunning actions. This guarantee is limited to the synchronous in-process instance. All state is lost on exit.

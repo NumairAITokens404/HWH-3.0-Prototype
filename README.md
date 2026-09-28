@@ -2,7 +2,7 @@
 
 ### Remember what failed. Recommend what worked. Verify recovery.
 
-A proposed incident-response system that uses past experience to help engineers investigate failures, choose a fix, and recover failed operations. **Hindsight is the planned shared memory at the center of the system.**
+An incident-response prototype that uses past experience to help engineers investigate failures, choose a fix, and recover failed operations. **Hindsight is the planned shared memory at the center of the system.**
 
 ## The problem
 
@@ -26,7 +26,7 @@ The intended users are incident-response engineers and service support teams. Th
 
 ## Architecture
 
-**Target workflow** ? the investigation stage works today; execution and the complete learning loop are planned.
+**Working simulated workflow** ? investigation, approval checks, remediation, retries, verification, and memory feedback run locally. Real Hindsight and LLM integration remain planned.
 
 ```text
 Incident / Failure
@@ -87,7 +87,7 @@ A customer transaction fails because of an inconsistent PIN state. Historical in
 | Reset the simulated PIN state | Succeeded | Address the state inconsistency first. |
 | Retry the transaction again | Succeeded | The order of actions matters. |
 
-**The current demo recommends reviewing the PIN-state reset before reprocessing and cites the matching incidents.** The planned execution flow then applies the action policy, performs the simulated fix, retries the transaction, verifies recovery, and stores the outcome.
+**The current demo recommends the PIN-state reset and cites the matching incidents.** It then applies the action policy, performs the simulated fix, retries the transaction, verifies simulated recovery, and stores the outcome. A second incident retrieves the first incident?s experience. A separate high-risk case pauses for approval.
 
 ## What makes this approach useful
 
@@ -99,13 +99,14 @@ A customer transaction fails because of an inconsistent PIN state. Historical in
 
 ## What works today
 
-The working prototype runs locally and produces a structured recommendation with historical evidence. It includes:
+The working prototype runs the complete recovery loop against an isolated simulator. It includes:
 
 - **18 synthetic historical incidents**, **6 held-out cases**, and **54 recorded action outcomes** across six incident families.
 - A mock memory interface and a rule-based investigation baseline.
-- Tests for evidence handling, recommendations, conflicting history, and data integrity: **22 tests passed in the latest full run**.
+- An explicit action policy, approval checks, simulated remediation and retries, independent simulated health checks, and outcome storage.
+- Tests for evidence handling, recommendations, conflicting history, and data integrity: **38 tests passed in the latest full run**.
 
-**Still to build:** real Hindsight integration, LLM reasoning, approval enforcement, simulated execution, reprocessing, and automatic verification/write-back. The current demo executes no actions. Recovery-time savings and production accuracy have not yet been measured.
+**Still to build:** real Hindsight integration, LLM reasoning, and measured evaluation. Approvals are trusted local inputs; production authentication and durable workflow execution are outside this prototype. Every action and health check is simulated, and memory resets on exit. Recovery-time savings and production accuracy have not yet been measured.
 
 ## Try the prototype
 
@@ -115,7 +116,7 @@ Follow the [setup and demo instructions](docs/getting-started.md). Once dependen
 python main.py
 ```
 
-The output shows the likely root cause, recommended action, supporting incident histories, and a confidence heuristic. All demo data is synthetic; no production connection or API key is needed.
+The output shows two simulated recoveries, evidence recalled from the first incident, and a high-risk action paused for approval. Structured investigation and workflow results are available through the Python service API. All demo data is synthetic; no production connection or API key is needed.
 
 ## How we will measure success
 

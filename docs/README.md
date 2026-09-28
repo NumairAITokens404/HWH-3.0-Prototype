@@ -8,7 +8,9 @@
 | [Architecture](architecture.md) | Updated agent roles, approval flow, and implemented/planned boundaries |
 | [Phase 1: foundations](phase-1-foundations.md) | Schemas, synthetic data, mock memory, and checks |
 | [Phase 2: investigation](phase-2-investigation.md) | Recommendation logic, evidence handling, and checks |
-| [Remaining phases](roadmap.md) | Decision layer, remediation, reprocessing, verification, integrations, and evaluation |
+| [Phase 3: actions](phase-3-actions.md) | Action policy, approvals, and simulated remediation |
+| [Phase 4: recovery](phase-4-recovery.md) | Retries, independent verification, outcome storage, and feedback |
+| [Remaining phases](roadmap.md) | Real Hindsight, LLM integration, and measured evaluation |
 | [Implementation reference](implementation.md) | File guide, package structure, data contracts, and mock-memory behavior |
 
 Update the relevant phase document as code lands. Keep the root README focused on the problem, solution, demonstration, and an accurate summary of current capabilities.

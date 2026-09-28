@@ -2,79 +2,40 @@
 
 [Documentation index](README.md)
 
-## File guide: purpose and logic
+## File guide
 
-| File(s) | Function and reason |
+| File(s) | Responsibility |
 | --- | --- |
-| `schemas/incident.py` | Validate incident inputs; keep evaluation answers separate from the input given to the investigator. |
-| `schemas/remediation.py` | Define action, risk, and bounded confidence fields so recommendations have a consistent shape. |
-| `schemas/outcome.py` | Preserve ordered attempts, root causes, and results; retry success depends on what happened before it. |
-| `schemas/investigation.py` | **New:** typed evidence, action counts, and recommendation/abstention output for backend consumers. |
-| `memory/hindsight_client.py` | Isolate the memory contract from its provider; the mock uses lexical similarity and stores both failed and successful attempts. |
-| `memory/memory_writer.py` | Validate fixture relationships and seed historical records without leaking held-out answers. |
-| `memory/memory_retriever.py` | Give callers one small retrieval entry point that retains complete histories. |
-| `agents/remediation_memory.py` | **Implemented:** filter comparable incidents and count verified success/failure/partial results separately from unverified attempts. |
-| `agents/incident_investigator.py` | **Implemented:** identify fixes followed by successful retries, cite evidence, and abstain when support is missing or conflicting. |
-| `services/incident_service.py` | **Implemented:** compose memory analysis and investigation into one backend-callable function. |
-| `main.py` | **Updated:** validate/seed data and print the investigation result as JSON. |
-| `config.py`, `.env.example` | Configure the data directory through the environment; no credentials required. |
-| `data/incidents.json` | Historical incident inputs across six recurring problem families. |
-| `data/remediation_history.json` | Root causes and ordered failed/successful attempts for those incidents. |
-| `data/test_incidents.json` | Held-out inputs and expected answers for tests; labels are not passed to the investigator. |
-| `tests/test_phase_one.py` | Check schema, dataset, retrieval, and memory-write behavior. |
-| `tests/test_investigation.py` | **New:** check recommendations, contradictory evidence, abstention, risk preservation, and absence of writes/execution. |
-| `agents/outcome_verifier.py`, `services/verification_service.py` | Placeholders for explicit recovery checks. |
-| `tools/incident_tools.py` | Placeholder for incident inspection helpers. |
-| `tools/risk_classifier.py` | Placeholder for deterministic authorization rules, independent of model suggestions. |
-| `tools/remediation_tools.py`, `services/remediation_service.py` | Placeholders for allowed simulated remediation and orchestration. |
-| `tools/reprocessing_tools.py` | Placeholder for retrying operations after remediation. |
-| `evaluation/evaluate_memory.py`, `evaluation/metrics.py` | Placeholders for measured comparisons with/without memory. |
-| `requirements.txt`, `.gitignore`, package `__init__.py` files | Dependencies, ignored local artifacts, and Python package boundaries. |
-| `README.md` | Current implementation, architecture, run instructions, and next steps. |
-
-## Project structure
-
-The repository root is the application root; no nested checkout or application directory is needed.
-
-```text
-agents/
-    incident_investigator.py       # Deterministic investigation baseline
-    remediation_memory.py         # Historical evidence analysis
-    outcome_verifier.py            # Placeholder
-memory/
-    hindsight_client.py           # Protocol + in-memory mock
-    memory_writer.py              # Dataset validation and historical seeding
-    memory_retriever.py            # Retrieval facade
-tools/                           # All modules are placeholders
-    incident_tools.py
-    remediation_tools.py
-    reprocessing_tools.py
-    risk_classifier.py
-services/
-    incident_service.py           # Investigation entry point
-    remediation_service.py        # Placeholder
-    verification_service.py       # Placeholder
-schemas/
-    incident.py                   # Incident and held-out evaluation case
-    remediation.py                # RemediationAction and risk level
-    investigation.py              # Evidence and investigation result
-    outcome.py                    # Outcome and IncidentMemory
-data/
-    incidents.json
-    remediation_history.json
-    test_incidents.json
-evaluation/                      # Placeholder modules; no performance claims
-    evaluate_memory.py
-    metrics.py
-tests/
-    test_phase_one.py
-    test_investigation.py
-config.py
-main.py
-requirements.txt
-.env.example
-README.md
-```
+| `agents/incident_investigator.py` | Recommend a historically supported fix or abstain. |
+| `agents/remediation_memory.py` | Filter comparable history and count ordered outcomes. |
+| `agents/auto_remediation.py` | Call the authorized simulated remediation tool. |
+| `agents/reprocessing.py` | Retry the failed operation after remediation. |
+| `agents/outcome_verifier.py` | Classify recovery from independent simulated observations. |
+| `services/incident_service.py` | Investigation-only API plus the full `IncidentWorkflow`, approval resume, memory capture, and duplicate handling. |
+| `services/remediation_service.py` | Sequence remediation and conditional retry. |
+| `services/verification_service.py` | Backend entry point for recovery checks. |
+| `tools/risk_classifier.py` | Explicit policy and approval binding; suggested risk cannot override policy. |
+| `tools/remediation_tools.py` | Recheck permission before mock execution. |
+| `tools/reprocessing_tools.py` | Retry entry point with a remediation prerequisite. |
+| `tools/simulation.py` | Own explicit scenario truth and mutable local operation state. |
+| `tools/incident_tools.py` | Reserved placeholder for future incident inspection helpers. |
+| `memory/hindsight_client.py` | Memory protocol and local in-memory implementation. |
+| `memory/memory_writer.py` | Validate datasets and seed historical records. |
+| `memory/memory_retriever.py` | Small facade that preserves complete histories. |
+| `schemas/incident.py` | Incident inputs and separate evaluation labels. |
+| `schemas/remediation.py` | Recommendation contract and risk labels. |
+| `schemas/outcome.py` | Ordered observed results, tool responses, and memory records. |
+| `schemas/investigation.py` | Evidence, counts, recommendation, and abstention output. |
+| `schemas/workflow.py` | Approval, simulation, execution, and recovery contracts. |
+| `data/*.json` | Historical inputs, remediation histories, and held-out labels. |
+| `tests/test_phase_one.py` | Foundation behavior: 11 tests. |
+| `tests/test_investigation.py` | Recommendation behavior: 11 tests. |
+| `tests/test_workflow.py` | Approval, execution, verification, and memory feedback: 16 tests. |
+| `evaluation/evaluate_memory.py`, `evaluation/metrics.py` | Future measured evaluation; placeholders. |
+| `config.py`, `.env.example` | Data-directory configuration. |
+| `main.py` | Two simulated recoveries and one high-risk approval pause. |
+| `requirements.txt`, `.gitignore`, `__init__.py` files | Dependencies, ignored artifacts, and package structure. |
+| `README.md`, `docs/` | Project overview and phase/technical documentation. |
 
 ## Data contracts
 
@@ -103,8 +64,9 @@ Each family has three historical incidents and one held-out case. Historical rec
 
 ## Mock Hindsight interface
 
-`HindsightClient` is an application-owned Python protocol with five operations:
+`HindsightClient` is an application-owned Python protocol with six operations:
 
+- `get_incident_memory(incident_id)`
 - `store_incident_memory(memory)`
 - `retrieve_similar_incidents(incident, limit=5)`
 - `store_remediation_outcome(outcome)`
@@ -116,3 +78,5 @@ Each family has three historical incidents and one held-out case. Historical rec
 Retrieval ranks records using service match (0.4), error-code match (0.3), symptom-token Jaccard overlap (0.2), and environment match (0.1). Environment alone cannot produce a match. Results exclude the query's own ID, break ties by incident ID, and include complete histories, including failed and partial outcomes. The similarity score is a deterministic mock ranking score, not calibrated confidence or semantic relevance.
 
 Identical writes are idempotent. Conflicting incident or outcome IDs raise an error instead of silently overwriting history. Outcome writes require an existing incident. Returned records are defensive copies. Memory lasts for one client instance; nothing is persisted across process restarts or written back to the fixture files.
+
+`Outcome.tool_result` preserves acknowledgements separately from verified results. `IncidentMemory.final_outcome` stores overall SUCCESS/FAILED/PARTIAL recovery. `schemas/workflow.py` adds approval, policy, scenario, tool, verification, and workflow result contracts.

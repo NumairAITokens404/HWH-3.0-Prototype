@@ -23,7 +23,7 @@ Confidence is a heuristic: sum of supporting similarity scores divided by `(supp
 
 ## Verification
 
-All 22 tests passed in the latest full run: 11 foundation tests and 11 investigation tests. The demo also ran successfully. Investigation tests cover all six expected fixture recommendations, failed/partial/unverified evidence, missing or conflicting root causes, tied fixes, unmatched environments, conservative historical risk, and absence of memory writes.
+At completion of this phase, 22 tests passed: 11 foundation tests and 11 investigation tests. Phase 4 adds workflow coverage for a current total of 38 passing tests. The demo also ran successfully. Investigation tests cover all six expected fixture recommendations, failed/partial/unverified evidence, missing or conflicting root causes, tied fixes, unmatched environments, conservative historical risk, and absence of memory writes.
 
 These checks establish behavior on the synthetic fixtures; they do not measure general accuracy or production recovery improvements.
 

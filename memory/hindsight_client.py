@@ -19,6 +19,7 @@ class MemoryMatch(Schema):
 
 
 class HindsightClient(Protocol):
+    def get_incident_memory(self, incident_id: str) -> IncidentMemory | None: ...
     def store_incident_memory(self, memory: IncidentMemory) -> None: ...
     def retrieve_similar_incidents(self, incident: Incident, limit: int = 5) -> list[MemoryMatch]: ...
     def store_remediation_outcome(self, outcome: Outcome) -> None: ...
@@ -39,6 +40,10 @@ class MockHindsightClient:
 
     def __init__(self):
         self._memories: dict[str, IncidentMemory] = {}
+
+    def get_incident_memory(self, incident_id: str) -> IncidentMemory | None:
+        memory = self._memories.get(incident_id)
+        return memory.model_copy(deep=True) if memory is not None else None
 
     def store_incident_memory(self, memory: IncidentMemory) -> None:
         memory = IncidentMemory.model_validate(memory.model_dump())

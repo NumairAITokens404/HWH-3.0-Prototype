@@ -15,6 +15,7 @@ class Outcome(Schema):
     incident_id: NonEmpty
     action: NonEmpty
     result: Result
+    tool_result: Result | None = None
     reprocessing_result: Result | None = None
     lesson_learned: NonEmpty
     risk_level: RiskLevel
@@ -28,6 +29,7 @@ class IncidentMemory(Schema):
     recommendation: RemediationAction | None = None
     outcomes: list[Outcome] = Field(default_factory=list)
     final_resolution: NonEmpty | None = None
+    final_outcome: Result | None = None
 
     @model_validator(mode="after")
     def validate_outcomes(self):
