@@ -2,6 +2,7 @@
 
 from pathlib import Path
 from types import SimpleNamespace
+import asyncio
 import unittest
 from unittest.mock import AsyncMock, patch
 
@@ -133,6 +134,17 @@ class SDKContractTests(unittest.TestCase):
             result = SDKTransport(Settings(data_dir=Path("data"))).call("get_document", bank_id="b", document_id="d")
         self.assertEqual(result, "{}")
         sdk.documents.get_document.assert_awaited_once_with(bank_id="b", document_id="d", _request_timeout=120.0)
+        sdk.aclose.assert_awaited_once()
+
+    def test_sdk_call_works_inside_running_event_loop(self):
+        sdk = SimpleNamespace(documents=SimpleNamespace(get_document=AsyncMock(return_value=SimpleNamespace(original_text="{}"))), aclose=AsyncMock())
+
+        async def invoke():
+            with patch("hindsight_client.Hindsight", return_value=sdk):
+                return SDKTransport(Settings(data_dir=Path("data"))).call("get_document", bank_id="b", document_id="d")
+
+        result = asyncio.run(invoke())
+        self.assertEqual(result, "{}")
         sdk.aclose.assert_awaited_once()
 
     def test_sdk_only_404_is_absence_and_errors_are_sanitized(self):

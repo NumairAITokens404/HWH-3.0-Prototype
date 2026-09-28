@@ -7,6 +7,7 @@ the read/check/write protocol does not provide atomic concurrent updates.
 
 import asyncio
 from hashlib import sha256
+from threading import Thread
 from typing import Protocol
 
 from config import Settings
@@ -27,7 +28,9 @@ class Transport(Protocol):
 class SDKTransport:
     """Run each SDK request and close its session on one short-lived event loop.
 
-    This is a synchronous adapter; async applications should run it in a worker.
+    This is a synchronous adapter. If called while an event loop is already
+    running (for example, during a FastAPI factory), the request is isolated
+    in a short-lived worker thread so the SDK can own its event loop.
     """
 
     def __init__(self, settings: Settings):
@@ -67,13 +70,24 @@ class SDKTransport:
                 await client.aclose()
 
         try:
-            asyncio.get_running_loop()
-        except RuntimeError:
-            pass
-        else:
-            raise HindsightUnavailable("Use the synchronous adapter from a worker thread, outside an event loop")
-        try:
-            return asyncio.run(request())
+            try:
+                asyncio.get_running_loop()
+            except RuntimeError:
+                return asyncio.run(request())
+
+            result = {}
+            def run_in_thread():
+                try:
+                    result["value"] = asyncio.run(request())
+                except BaseException as exc:  # propagate into the sanitizing boundary below
+                    result["error"] = exc
+
+            worker = Thread(target=run_in_thread, name="hindsight-sdk", daemon=True)
+            worker.start()
+            worker.join()
+            if "error" in result:
+                raise result["error"]
+            return result["value"]
         except Exception:
             raise HindsightUnavailable("Hindsight request failed; check server availability, credentials, and timeout") from None
 
