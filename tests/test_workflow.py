@@ -48,6 +48,29 @@ class WorkflowTests(unittest.TestCase):
             self.assertEqual(result.status, "SUCCESS")
             self.assertEqual(result.approval.reviewer, "test-reviewer")
 
+    def test_high_severity_low_risk_action_requires_approval(self):
+        incident, world, workflow = self.setup_workflow(6)
+        waiting = workflow.run(incident)
+        self.assertEqual(waiting.decision.risk_level, "LOW")
+        self.assertEqual(waiting.status, "HUMAN_APPROVAL_REQUIRED")
+        self.assertEqual(world.observe(incident), (False, False))
+        with self.assertRaises(PermissionError):
+            execute_remediation(incident, waiting.investigation.recommended_action, world)
+        approved = workflow.run(incident, Approval(request_id=waiting.decision.request_id,
+                                                  approved=True, reviewer="operator"))
+        self.assertEqual(approved.status, "SUCCESS")
+
+    def test_denial_is_an_observation_not_a_failed_fix(self):
+        incident, _, workflow = self.setup_workflow(2)
+        waiting = workflow.run(incident)
+        workflow.run(incident, Approval(request_id=waiting.decision.request_id, approved=False, reviewer="operator"))
+        record = self.client.get_incident_memory(incident.incident_id)
+        self.assertEqual(record.record_kind, "observation")
+        self.assertEqual(record.workflow_status, "DENIED")
+        self.assertEqual(record.outcomes, [])
+        later = incident.model_copy(update={"incident_id": "LATER-DB"})
+        self.assertIsNotNone(investigate_incident(later, self.client).recommended_action)
+
     def test_denial_and_mismatched_approval_never_execute(self):
         incident, world, workflow = self.setup_workflow(2)
         waiting = workflow.run(incident)

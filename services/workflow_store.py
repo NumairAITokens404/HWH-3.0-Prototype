@@ -38,6 +38,17 @@ class WorkflowStore:
                 details TEXT NOT NULL
             )""")
             self._connection.execute("CREATE INDEX IF NOT EXISTS audit_incident_sequence ON audit_events (incident_id, sequence)")
+            self._connection.execute("CREATE TABLE IF NOT EXISTS dashboard_state (key TEXT PRIMARY KEY, value TEXT NOT NULL)")
+
+    def load_dashboard(self, key: str) -> dict | None:
+        with self._lock:
+            row = self._connection.execute("SELECT value FROM dashboard_state WHERE key = ?", (key,)).fetchone()
+        return json.loads(row[0]) if row else None
+
+    def save_dashboard(self, key: str, state: dict) -> None:
+        with self._lock, self._connection:
+            self._connection.execute("INSERT INTO dashboard_state VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+                                     (key, json.dumps(state)))
 
     def close(self) -> None:
         with self._lock:

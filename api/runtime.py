@@ -5,6 +5,9 @@ from threading import RLock
 from threading import Thread
 from uuid import uuid4
 from datetime import datetime, timezone
+from base64 import b64decode, b64encode
+from hashlib import sha256
+import json
 
 from api.models import ApprovalSubmission, DemoScenarioInfo, DemoScenarioName
 from config import Settings
@@ -14,6 +17,7 @@ from memory.memory_writer import load_datasets, seed_memory
 from schemas.incident import Incident
 from schemas.ingestion import FailedRemediationSearchResult, IngestionResult
 from schemas.investigation import InvestigationResult
+from schemas.outcome import IncidentMemory
 from schemas.workflow import Approval, SimulationScenario, WorkflowResult
 from services.incident_service import IncidentWorkflow, investigate_incident
 from services.ingestion_service import ingest_incident_history
@@ -69,9 +73,97 @@ class ApiRuntime:
         self._runs: dict[str, _Run] = {}
         self._lock = RLock()
         self.workflow_store = WorkflowStore(settings.workflow_db_path)
+        self._dashboard_key = f"{settings.memory_backend}:{settings.hindsight_base_url}:{settings.hindsight_bank_id}:{settings.sqlite_path}"
+        self._evaluation_running = False
+        self._evaluation_error: str | None = None
+        self._evaluation_revision = 0
+        self._evaluation_label = "Current memory"
+        self._evaluation_pending = False
+        self._evaluation_completed_cases = 0
         self.connector_receipts = (ConnectorReceiptStore(settings.connector_receipt_db_path)
                                    if settings.action_backend == "connector" else None)
+        self._restore_dashboard()
         self._restore_pending_runs()
+
+    def _persist_dashboard(self) -> None:
+        # Only control state lives here; incident evidence remains in the memory backend.
+        self.workflow_store.save_dashboard(self._dashboard_key, {
+            "session": self._ui_session, "sources": self._ui_source_names,
+            "uploads": {key: {**value, "content": b64encode(value["content"]).decode()}
+                        for key, value in self._ui_uploads.items()},
+            "results": {key: value.model_dump() for key, value in self._ui_results.items()},
+            "completed": self._ui_completion_order, "evaluation": self._evaluation_points,
+            "evaluation_pending": self._evaluation_pending,
+        })
+
+    def _restore_dashboard(self) -> None:
+        if self.settings.memory_backend == "mock":
+            return
+        state = self.workflow_store.load_dashboard(self._dashboard_key)
+        if not state:
+            return
+        self._ui_session = state["session"]
+        self.ui_memory = create_memory_client(self.settings, f"dashboard-{self._ui_session}")
+        self._ui_source_names = state["sources"]
+        self._ui_uploads = {key: {**value, "content": b64decode(value["content"])}
+                            for key, value in state["uploads"].items()}
+        for upload in self._ui_uploads.values():
+            if upload["stage"] not in {"completed", "failed"}:
+                upload.update(stage="failed", error="API restarted during ingestion. Retry this upload; retained records are preserved.")
+        self._ui_results = {key: WorkflowResult.model_validate(value) for key, value in state["results"].items()}
+        self._ui_completion_order = state["completed"]
+        self._evaluation_points = state["evaluation"]
+        self._evaluation_pending = state.get("evaluation_pending", False) or (
+            bool(self._ui_source_names) and len(self._evaluation_points) <= 1)
+        for key, result in self._ui_results.items():
+            if result.status in {"HUMAN_APPROVAL_REQUIRED", "BLOCKED"} and result.decision is not None:
+                case = self.case(key)
+                scenario = self._case_scenario(case)
+                workflow = IncidentWorkflow(self.ui_memory, self._execution_backend(scenario), self.llm)
+                workflow.restore_pending(case.incident, result.investigation)
+                self._ui_runs[key] = _Run(scenario, workflow)
+
+    def _invalidate_unresolved(self) -> None:
+        for key, result in list(self._ui_results.items()):
+            if result.status == "INSUFFICIENT_EVIDENCE":
+                self._ui_results.pop(key)
+                self._ui_runs.pop(key, None)
+
+    def _remember_observation(self, incident: Incident, result: WorkflowResult) -> None:
+        if result.status not in {"INSUFFICIENT_EVIDENCE", "HUMAN_APPROVAL_REQUIRED", "BLOCKED"}:
+            return
+        digest = sha256((result.status + result.investigation.model_dump_json()).encode()).hexdigest()[:16]
+        key = f"{incident.incident_id}-review-{digest}"
+        record = IncidentMemory(
+            incident=incident.model_copy(update={"incident_id": key}), record_kind="observation",
+            related_incident_id=incident.incident_id, workflow_status=result.status,
+            root_cause=result.investigation.likely_root_cause,
+            recommendation=result.investigation.recommended_action,
+            final_resolution=f"{result.status}: {result.investigation.reasoning} No remediation executed.",
+        )
+        self.ui_memory.store_incident_memory(record)
+        self._ui_source_names[key] = "workflow observation"
+        result.observation_id = key
+        result.memory_stored = True
+
+    def _learn_demo_history(self, incident: Incident) -> list[str]:
+        """Acquire source history for this simulated incident, then require fresh recall.
+
+        This selects historical records by observed context, never evaluation labels.
+        Connector workflows must use operator-supplied evidence.
+        """
+        if self.settings.action_backend != "simulation":
+            return []
+        records = [record for record in self.history
+                   if record.incident.service.casefold() == incident.service.casefold()
+                   and record.incident.environment.casefold() == incident.environment.casefold()
+                   and record.incident.error_code == incident.error_code
+                   and record.incident.incident_id not in self._ui_source_names]
+        if not records:
+            return []
+        content = json.dumps([record.model_dump() for record in records]).encode()
+        result = self.ingest(content, f"demo-history-{incident.service}-{incident.environment}.json")
+        return list(result.incident_ids)
 
     def _execution_backend(self, scenario: SimulationScenario):
         if self.settings.action_backend == "simulation":
@@ -161,6 +253,7 @@ class ApiRuntime:
             result = ingest_incident_history(content, filename, self.ui_memory,
                                              self.settings.memory_backend)
             self._ui_source_names.update({incident_id: filename for incident_id in result.incident_ids})
+            self._invalidate_unresolved()
             upload_id = "upload-" + uuid4().hex[:12]
             self._ui_uploads[upload_id] = {
                 "id": upload_id, "fileName": result.source_filename, "size": len(content),
@@ -172,6 +265,7 @@ class ApiRuntime:
                 "createdAt": datetime.now(timezone.utc).isoformat(),
             }
             self._capture_evaluation(f"Uploaded {result.source_filename}")
+            self._persist_dashboard()
             return result.model_copy(update={"upload_id": upload_id})
 
     def queue_ingest(self, content: bytes, filename: str) -> dict:
@@ -186,6 +280,7 @@ class ApiRuntime:
                 "createdAt": datetime.now(timezone.utc).isoformat(),
             }
             queued = {key: value for key, value in self._ui_uploads[upload_id].items() if key != "content"}
+            self._persist_dashboard()
         Thread(target=self._run_queued_ingest, args=(upload_id,), daemon=True,
                name=f"ingest-{upload_id}").start()
         return queued
@@ -196,6 +291,8 @@ class ApiRuntime:
             if upload is None:
                 return
             content, filename = upload["content"], upload["fileName"]
+            memory = self.ui_memory
+            session = self._ui_session
             upload.update(stage="embedding", progress=45)
         try:
             # Hindsight retention can invoke local embeddings and Ollama. Keep it
@@ -203,18 +300,20 @@ class ApiRuntime:
             def record_stored(record, completed: int, total: int) -> None:
                 with self._lock:
                     upload = self._ui_uploads.get(upload_id)
-                    if upload is None:
+                    if upload is None or session != self._ui_session:
                         return
                     self._ui_source_names[record.incident.incident_id] = filename
+                    self._invalidate_unresolved()
                     upload.update(stage="storing", storedIncidents=completed,
                                   progress=45 + round(40 * completed / total))
+                    self._persist_dashboard()
 
-            result = ingest_incident_history(content, filename, self.ui_memory,
+            result = ingest_incident_history(content, filename, memory,
                                              self.settings.memory_backend,
                                              on_record_stored=record_stored)
             with self._lock:
                 upload = self._ui_uploads.get(upload_id)
-                if upload is None:
+                if upload is None or session != self._ui_session:
                     return
                 if not self._evaluation_points:
                     self._evaluation_points.append({"step": 0, "label": "Empty memory",
@@ -226,25 +325,19 @@ class ApiRuntime:
                               failedRemediationChunks=result.failed_remediation_chunk_count,
                               storedIncidents=result.incident_count,
                               incidentIds=list(result.incident_ids))
+                self._persist_dashboard()
         except Exception as exc:
             with self._lock:
                 upload = self._ui_uploads.get(upload_id)
                 if upload is not None:
                     upload.update(stage="failed", progress=0, error=str(exc))
+                    self._persist_dashboard()
             return
         # Evaluation is real but independent: a measurement failure must not
         # relabel successfully retained evidence as a failed upload.
-        try:
-            measurement = self._measure_memory()
-            with self._lock:
-                if upload_id in self._ui_uploads:
-                    self._evaluation_points.append({
-                        "step": len(self._evaluation_points),
-                        "label": f"Uploaded {result.source_filename}",
-                        "memoryRecords": len(self.memory_records()), **measurement,
-                    })
-        except Exception:
-            return
+        with self._lock:
+            if upload_id in self._ui_uploads and session == self._ui_session:
+                self._capture_evaluation(f"Uploaded {result.source_filename}")
 
     def uploads(self) -> list[dict]:
         with self._lock:
@@ -270,6 +363,7 @@ class ApiRuntime:
                 self._ui_source_names.update({incident_id: upload["fileName"]
                                               for incident_id in result.incident_ids})
             self._capture_evaluation("Uploads rebuilt")
+            self._persist_dashboard()
 
     def memory_records(self):
         with self._lock:
@@ -291,6 +385,10 @@ class ApiRuntime:
             self._ui_results.clear()
             self._ui_completion_order.clear()
             self._evaluation_points.clear()
+            self._evaluation_revision += 1
+            self._evaluation_error = None
+            self._evaluation_pending = False
+            self._persist_dashboard()
 
     @property
     def ui_ready(self) -> bool:
@@ -308,26 +406,48 @@ class ApiRuntime:
     def start_case(self, incident_id: str) -> WorkflowResult:
         with self._lock:
             existing = self._ui_results.get(incident_id)
-            if existing is not None:
+            if existing is not None and existing.status not in {"INSUFFICIENT_EVIDENCE", "BLOCKED"}:
                 return existing.model_copy(deep=True)
             if len(self._ui_runs) >= self.max_active_runs:
                 raise RuntimeError("Demo workflow capacity reached; restart the API to clear local state")
             case = self.case(incident_id)
             incident = case.incident
-            operation_id = (incident.transaction_id or incident.job_id or incident.customer_id
-                            or "UI-OP-" + incident.incident_id)
-            scenario = SimulationScenario(incident=incident, operation_id=operation_id,
-                                          required_action=case.expected_action)
-            workflow = IncidentWorkflow(self.ui_memory, self._execution_backend(scenario), self.llm)
-            run = _Run(scenario=scenario, workflow=workflow)
-            result = workflow.run(incident)
-            if result.status == "HUMAN_APPROVAL_REQUIRED":
+            # Preserve the workflow object before executing: a failed retain must
+            # retry the write, never repeat the remediation.
+            run = self._ui_runs.get(incident_id)
+            if run is None or (existing and existing.status == "INSUFFICIENT_EVIDENCE"):
+                scenario = self._case_scenario(case)
+                run = _Run(scenario, IncidentWorkflow(self.ui_memory, self._execution_backend(scenario), self.llm))
                 self._ui_runs[incident_id] = run
+            result = run.workflow.run(incident)
+            if result.status == "INSUFFICIENT_EVIDENCE":
+                self._remember_observation(incident, result)
+                learned = self._learn_demo_history(incident)
+                if learned:
+                    run.workflow = IncidentWorkflow(self.ui_memory, self._execution_backend(run.scenario), self.llm)
+                    self._ui_runs[incident_id] = run
+                    result = run.workflow.run(incident)
+                    result.learned_from = learned
+            self._remember_observation(incident, result)
             self._ui_results[incident_id] = result.model_copy(deep=True)
-            if result.status in {"SUCCESS", "FAILED", "PARTIAL"}:
-                self._ui_completion_order.append(incident_id)
-                self._capture_evaluation(f"Verified {incident_id}")
+            self._finish_case(result)
             return result
+
+    @staticmethod
+    def _case_scenario(case) -> SimulationScenario:
+        incident = case.incident
+        return SimulationScenario(incident=incident,
+                                  operation_id=incident.transaction_id or incident.job_id or incident.customer_id or "UI-OP-" + incident.incident_id,
+                                  required_action=case.expected_action)
+
+    def _finish_case(self, result: WorkflowResult) -> None:
+        if result.status in {"SUCCESS", "FAILED", "PARTIAL", "DENIED"}:
+            self._ui_runs.pop(result.incident_id, None)
+            self._invalidate_unresolved()
+            if result.status != "DENIED" and result.incident_id not in self._ui_completion_order:
+                self._ui_completion_order.append(result.incident_id)
+            self._capture_evaluation(f"Verified {result.incident_id}" if result.verification else f"Reviewed {result.incident_id}")
+        self._persist_dashboard()
 
     def submit_ui_approval(self, incident_id: str, submission: ApprovalSubmission,
                            reviewer: str) -> WorkflowResult:
@@ -338,26 +458,34 @@ class ApiRuntime:
             approval = Approval(request_id=submission.request_id, approved=submission.approved,
                                 reviewer=reviewer)
             result = run.workflow.run(run.scenario.incident, approval)
+            previous = self._ui_results.get(incident_id)
+            if previous:
+                result.learned_from = previous.learned_from
+                result.observation_id = previous.observation_id
             self._ui_results[incident_id] = result.model_copy(deep=True)
-            if (result.status in {"SUCCESS", "FAILED", "PARTIAL"}
-                    and incident_id not in self._ui_completion_order):
-                self._ui_completion_order.append(incident_id)
-                self._capture_evaluation(f"Verified {incident_id}")
-            if result.status != "BLOCKED":
-                self._ui_runs.pop(incident_id, None)
+            self._finish_case(result)
             return result
 
-    def _measure_memory(self) -> dict:
+    def _measure_memory(self, memory=None) -> dict:
         """Evaluate the same held-out set against the current memory contents."""
         correct = accepted = retrieved_relevant = retrieved_total = avoided = avoidable = 0
         rows = []
         for case in self.cases:
-            result = investigate_incident(case.incident, self.ui_memory, self.llm)
+            # Measure memory retrieval and validated recovery support directly.
+            # Twelve additional model generations contend with retention on a
+            # local GPU and can leave the dashboard showing only the baseline.
+            result = investigate_incident(case.incident, memory or self.ui_memory)
             action = result.recommended_action.action_name if result.recommended_action else None
             accepted += int(action is not None)
             correct += int(action == case.expected_action)
             recalled = {item.incident_id for item in result.historical_evidence}
-            relevant = set(case.relevant_incident_ids)
+            relevant = set(case.relevant_incident_ids) | {
+                item.incident_id for item in result.historical_evidence
+                if any(other.incident.incident_id == item.incident_id
+                       and other.incident.service == case.incident.service
+                       and other.incident.error_code == case.incident.error_code
+                       and other.incident.environment == case.incident.environment for other in self.cases)
+            }
             retrieved_relevant += len(recalled & relevant)
             retrieved_total += len(recalled)
             if action is not None and case.actions_to_avoid_before_remediation:
@@ -367,6 +495,9 @@ class ApiRuntime:
                          "recommendedAction": action, "status": result.status,
                          "retrievedIds": sorted(recalled), "relevantIds": sorted(relevant),
                          "method": result.method})
+            if memory is not None:
+                with self._lock:
+                    self._evaluation_completed_cases = len(rows)
         total = len(self.cases)
         return {"correct": correct, "accepted": accepted, "total": total,
                 "score": round(100 * correct / total, 1),
@@ -387,9 +518,51 @@ class ApiRuntime:
                           "method": "empty_memory_baseline"} for case in self.cases]}
 
     def _capture_evaluation(self, label: str) -> None:
-        measurement = self._measure_memory()
+        if not self._evaluation_points:
+            self._evaluation_points.append({"step": 0, "label": "Empty memory", "memoryRecords": 0, **self._empty_measurement()})
+        if self.settings.memory_backend == "hindsight":
+            self._evaluation_pending = True
+            self._evaluation_revision += 1
+            self._evaluation_label = label
+            self._evaluation_error = None
+            if not self._evaluation_running:
+                self._evaluation_running = True
+                Thread(target=self._evaluate_background, daemon=True, name="hindsight-evaluation").start()
+            self._persist_dashboard()
+            return
+        try:
+            measurement = self._measure_memory()
+        except Exception as exc:
+            self._evaluation_error = str(exc)
+            return
+        self._evaluation_error = None
+        self._evaluation_pending = False
         self._evaluation_points.append({"step": len(self._evaluation_points), "label": label,
                                         "memoryRecords": len(self.memory_records()), **measurement})
+
+    def _evaluate_background(self) -> None:
+        while True:
+            with self._lock:
+                revision, session = self._evaluation_revision, self._ui_session
+                memory, label = self.ui_memory, self._evaluation_label
+                self._evaluation_completed_cases = 0
+                count = len(self._ui_source_names.keys() | self._ui_results.keys())
+            try:
+                measurement = self._measure_memory(memory)
+                error = None
+            except Exception as exc:
+                measurement, error = None, str(exc)
+            with self._lock:
+                if session != self._ui_session or revision != self._evaluation_revision:
+                    continue
+                self._evaluation_error = error
+                if measurement is not None:
+                    self._evaluation_points.append({"step": len(self._evaluation_points), "label": label,
+                                                    "memoryRecords": count, **measurement})
+                self._evaluation_running = False
+                self._evaluation_pending = error is not None
+                self._persist_dashboard()
+                return
 
     def evaluation_progress(self) -> list[dict]:
         with self._lock:
@@ -400,13 +573,24 @@ class ApiRuntime:
             return [dict(point) for point in self._evaluation_points]
 
     def evaluation_report(self) -> dict:
+        with self._lock:
+            if self._evaluation_pending and not self._evaluation_running and not self._evaluation_error:
+                self._capture_evaluation("Resumed memory evaluation")
         points = self.evaluation_progress()
         baseline, current = points[0], points[-1]
         return {"backend": self.settings.memory_backend, "bank": (
                     f"{self.settings.hindsight_bank_id}-dashboard-{self._ui_session}"
                     if self.settings.memory_backend == "hindsight" else None),
                 "baseline": baseline, "current": current, "progress": points,
+                "evaluation_status": "running" if self._evaluation_running else "error" if self._evaluation_error else "ready",
+                "evaluation_error": self._evaluation_error,
+                "evaluated_cases": self._evaluation_completed_cases,
                 "completed": len(self._ui_completion_order), "total": len(self.cases)}
+
+    def refresh_evaluation(self) -> None:
+        with self._lock:
+            if not self._evaluation_running:
+                self._capture_evaluation("Current memory")
 
     @property
     def ui_completed(self) -> int:

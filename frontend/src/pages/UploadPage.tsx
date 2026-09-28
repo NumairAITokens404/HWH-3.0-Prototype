@@ -40,7 +40,7 @@ export function UploadPage() {
   const completedKey = stored.filter((job) => job.stage === 'completed').map((job) => job.id).join(',')
   useEffect(() => {
     if (!completedKey) return
-    for (const key of ['incidents', 'memory', 'overview', 'evaluation', 'pending-approvals']) {
+    for (const key of ['incident', 'incidents', 'memory', 'overview', 'evaluation', 'pending-approvals']) {
       queryClient.invalidateQueries({ queryKey: [key] })
     }
   }, [completedKey, queryClient])
@@ -49,6 +49,7 @@ export function UploadPage() {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: ['uploads'] }),
       queryClient.invalidateQueries({ queryKey: ['incidents'] }),
+      queryClient.invalidateQueries({ queryKey: ['incident'] }),
       queryClient.invalidateQueries({ queryKey: ['memory'] }),
       queryClient.invalidateQueries({ queryKey: ['overview'] }),
       queryClient.invalidateQueries({ queryKey: ['evaluation'] }),

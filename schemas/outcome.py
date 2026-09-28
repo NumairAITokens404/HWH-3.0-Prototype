@@ -25,6 +25,9 @@ class Outcome(Schema):
 
 class IncidentMemory(Schema):
     incident: Incident
+    record_kind: Literal["experience", "observation"] = "experience"
+    related_incident_id: NonEmpty | None = None
+    workflow_status: str | None = None
     root_cause: NonEmpty | None = None
     recommendation: RemediationAction | None = None
     outcomes: list[Outcome] = Field(default_factory=list)

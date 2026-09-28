@@ -70,16 +70,19 @@ class LLMTests(unittest.TestCase):
         self.assertIsNone(result.recommended_action)
         self.assertEqual(result.model_proposal.action_name, "reset_customer_pin")
 
-    def test_wrong_action_and_uncited_action_are_rejected(self):
+    def test_wrong_action_and_uncited_action_use_verified_history(self):
         for changes in ({"action_name": "delete_database"}, {"evidence_ids": []}, {"action_name": "reprocess_transaction"}):
             result = investigate_incident(self.incident, self.memory, StubLLM(self.proposal.model_copy(update=changes)))
-            self.assertIsNone(result.recommended_action)
+            self.assertEqual(result.recommended_action.action_name, "reset_customer_pin")
+            self.assertEqual(result.method, "deterministic_fallback")
+            self.assertEqual(result.fallback_reason, "model_proposal_not_supported_by_history")
 
-    def test_model_abstention_is_respected(self):
+    def test_model_abstention_does_not_discard_verified_history(self):
         abstain = self.proposal.model_copy(update={"status": "ABSTAIN", "action_name": None})
         result = investigate_incident(self.incident, self.memory, StubLLM(abstain))
-        self.assertEqual(result.status, "INSUFFICIENT_EVIDENCE")
-        self.assertIsNone(result.recommended_action)
+        self.assertEqual(result.status, "RECOMMENDATION_READY")
+        self.assertEqual(result.recommended_action.action_name, "reset_customer_pin")
+        self.assertEqual(result.fallback_reason, "model_abstained_despite_verified_history")
 
     def test_connection_error_uses_disclosed_baseline(self):
         result = investigate_incident(self.incident, self.memory, StubLLM(error=LLMError("timeout")))

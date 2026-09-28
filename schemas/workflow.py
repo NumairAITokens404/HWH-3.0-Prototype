@@ -1,6 +1,7 @@
 """Contracts for local simulation, approval, and verified workflow results."""
 
 from typing import Literal
+from pydantic import Field
 
 from schemas.incident import Incident, NonEmpty, Schema
 from schemas.investigation import InvestigationResult
@@ -61,3 +62,5 @@ class WorkflowResult(Schema):
     verification: VerificationResult | None = None
     memory_stored: bool = False
     simulated: bool = True
+    learned_from: list[str] = Field(default_factory=list)
+    observation_id: str | None = None

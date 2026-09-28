@@ -13,5 +13,6 @@ export interface IncidentApi {
   deleteUpload(id: string): Promise<void>
   advanceUpload(job: UploadJob): Promise<UploadJob>
   getEvaluation(): Promise<EvaluationSummary>
+  refreshEvaluation(): Promise<void>
   resetDemo(): Promise<void>
 }

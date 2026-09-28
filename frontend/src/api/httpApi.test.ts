@@ -4,6 +4,15 @@ import { createHttpApi } from './httpApi'
 afterEach(() => vi.restoreAllMocks())
 
 describe('HTTP API adapter', () => {
+  it('requires approval for high severity even when the proposed action is low risk', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({
+      incident: { incident_id: 'HELD-007', severity: 'HIGH', service: 'customer-service', environment: 'production', symptoms: [] },
+      investigation: { recommended_action: { action_name: 'reset_customer_pin', risk_level: 'LOW', confidence: 0.8 }, historical_evidence: [], reasoning: 'Evidence', method: 'deterministic_history_baseline' },
+    }), { status: 200 }))
+    const item = await createHttpApi('http://localhost:8000').getIncident('HELD-007')
+    expect(item.policy_status).toBe('HUMAN_APPROVAL_REQUIRED')
+    expect(item.risk_level).toBe('LOW')
+  })
   it('loads and filters incidents from FastAPI', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify([
       { incident_id: 'TEST-001', service: 'customer-service', severity: 'HIGH', symptoms: ['failed'], environment: 'production', error_code: 'PIN_STATE_INVALID', status: 'INVESTIGATING', occurred_at: '2026-09-28T00:00:00Z' },

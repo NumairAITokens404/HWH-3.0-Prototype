@@ -70,8 +70,8 @@ class LocalRuntimeTests(unittest.TestCase):
         self.assertEqual(history["accepted_action_accuracy"], 1)
         self.assertGreater(history["retrieval_recall"], 0)
         self.assertGreater(history["retrieval_precision_when_nonempty"], 0)
-        self.assertEqual(history["simulated_tool_calls_total"], 8)
-        self.assertEqual(history["approval_pauses"], 8)
+        self.assertEqual(history["simulated_tool_calls_total"], 6)
+        self.assertEqual(history["approval_pauses"], 9)
         self.assertTrue(all(item["passed"] for item in report["challenges"]))
 
     def test_token_f1_handles_missing_and_paraphrased_text(self):

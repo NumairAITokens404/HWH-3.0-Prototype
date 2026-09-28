@@ -23,7 +23,8 @@ def classify_action(incident: Incident, action: RemediationAction, approval: App
     rule = ACTION_POLICY.get(action.action_name)
     risk = rule[2] if rule else "HIGH"
     # Bind approval to the full incident, proposed action, and authoritative policy.
-    payload = {"incident": incident.model_dump(), "action": action.model_dump(), "policy": rule}
+    payload = {"incident": incident.model_dump(), "action": action.model_dump(), "policy": rule,
+               "approval_policy": "severity-and-action-v2"}
     request_id = sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()
     decision = ActionDecision(status="BLOCKED", action_name=action.action_name,
                               risk_level=risk, request_id=request_id, reason="Unknown action or incompatible incident context.")
@@ -37,9 +38,10 @@ def classify_action(incident: Incident, action: RemediationAction, approval: App
             decision.status = "DENIED"
             decision.reason = "Reviewer denied this action."
             return decision
-    if risk != "LOW" and approval is None:
+    if (risk != "LOW" or incident.severity in {"HIGH", "CRITICAL"}) and approval is None:
         decision.status = "HUMAN_APPROVAL_REQUIRED"
-        decision.reason = "Policy requires explicit approval for medium/high risk actions."
+        decision.reason = ("Policy requires explicit approval for High/Critical incidents "
+                           "and medium/high risk actions.")
     else:
         decision.status = "ALLOWED"
         decision.reason = "Allowed by the local simulation policy."

@@ -43,6 +43,12 @@ class LLMInvestigator:
         result.model_proposal = proposal
         result.llm_latency_ms = elapsed
         if proposal.status == "ABSTAIN":
+            if baseline.recommended_action is not None:
+                baseline.method = "deterministic_fallback"
+                baseline.fallback_reason = "model_abstained_despite_verified_history"
+                baseline.model_proposal = proposal
+                baseline.llm_latency_ms = elapsed
+                return baseline
             result.status = "INSUFFICIENT_EVIDENCE"
             result.recommended_action = None
             result.likely_root_cause = None
@@ -52,6 +58,12 @@ class LLMInvestigator:
         # Model knowledge alone may produce an advisory proposal, not an executable fix.
         if (baseline.recommended_action is None or not proposal.evidence_ids
                 or proposal.action_name != baseline.recommended_action.action_name):
+            if baseline.recommended_action is not None:
+                baseline.method = "deterministic_fallback"
+                baseline.fallback_reason = "model_proposal_not_supported_by_history"
+                baseline.model_proposal = proposal
+                baseline.llm_latency_ms = elapsed
+                return baseline
             result.status = "INSUFFICIENT_EVIDENCE"
             result.recommended_action = None
             result.likely_root_cause = None
@@ -69,11 +81,11 @@ class LLMInvestigator:
                     item.outcomes[-1].outcome_id,
                 })
         if not set(proposal.evidence_ids) & supporting_ids:
-            result.status = "INSUFFICIENT_EVIDENCE"
-            result.recommended_action = None
-            result.likely_root_cause = None
-            result.reasoning = "Citations do not support the proposed recovery sequence."
-            return result
+            baseline.method = "deterministic_fallback"
+            baseline.fallback_reason = "citations_do_not_support_recovery_sequence"
+            baseline.model_proposal = proposal
+            baseline.llm_latency_ms = elapsed
+            return baseline
         result.reasoning = proposal.explanation
         result.recommended_action.reason = proposal.explanation
         # Keep canonical historical cause, risk, and deterministic confidence. Raw

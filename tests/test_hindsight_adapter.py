@@ -160,6 +160,20 @@ class SDKContractTests(unittest.TestCase):
                         transport.call("get_document", bank_id="b", document_id="d")
                     self.assertNotIn("secret", str(caught.exception))
 
+    def test_recall_of_new_bank_is_empty_but_other_404_is_an_error(self):
+        from hindsight_client_api.exceptions import ApiException
+        for body, empty in (("{\"detail\":\"Bank 'new' not found\"}", True), ("Not Found", False)):
+            error = ApiException(status=404)
+            error.body = body
+            sdk = SimpleNamespace(arecall=AsyncMock(side_effect=error), aclose=AsyncMock())
+            with patch("hindsight_client.Hindsight", return_value=sdk):
+                transport = SDKTransport(Settings(data_dir=Path("data")))
+                if empty:
+                    self.assertEqual(transport.call("recall", bank_id="new", query="history").results, [])
+                else:
+                    with self.assertRaises(HindsightUnavailable):
+                        transport.call("recall", bank_id="new", query="history")
+
     def test_missing_original_text_is_not_absence(self):
         sdk = SimpleNamespace(documents=SimpleNamespace(get_document=AsyncMock(return_value=SimpleNamespace(original_text=None))), aclose=AsyncMock())
         with patch("hindsight_client.Hindsight", return_value=sdk):

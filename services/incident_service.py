@@ -13,6 +13,7 @@ from tools.risk_classifier import classify_action
 from tools.execution_backend import ExecutionBackend
 from llm.client import StructuredLLM
 from agents.llm_investigator import LLMInvestigator
+from services.ingestion_service import failed_remediation_chunks
 
 
 def investigate_incident(incident: Incident, client: HindsightClient, llm: StructuredLLM | None = None) -> InvestigationResult:
@@ -45,13 +46,17 @@ class IncidentWorkflow:
             raise ValueError("Cannot restore a terminal workflow")
         self._pending[incident.incident_id] = investigation.model_copy(deep=True)
 
+    def _store_memory(self, memory: IncidentMemory) -> None:
+        self.client.store_incident_memory(memory)
+        self.client.store_failed_remediation_chunks(failed_remediation_chunks(memory, "workflow outcome"))
+
     def run(self, incident: Incident, approval: Approval | None = None) -> WorkflowResult:
         self.world.validate_incident(incident)
         key = incident.incident_id
         if key in self._completed:
             result, memory = self._completed[key]
             # Retrying a failed memory write must not rerun actions.
-            self.client.store_incident_memory(memory)
+            self._store_memory(memory)
             result.memory_stored = True
             return result.model_copy(deep=True)
         if key in self._terminal:
@@ -77,23 +82,13 @@ class IncidentWorkflow:
                 # this action was considered and intentionally not executed.
                 memory = IncidentMemory(
                     incident=incident.model_copy(deep=True),
+                    record_kind="observation", workflow_status="DENIED",
                     root_cause=investigation.likely_root_cause,
                     recommendation=action.model_copy(deep=True),
-                    outcomes=[Outcome(
-                        outcome_id=f"{key}-rejected",
-                        incident_id=key,
-                        action=action.action_name,
-                        result="FAILED",
-                        tool_result=None,
-                        risk_level=decision.risk_level,
-                        verified=True,
-                        lesson_learned=("Human review rejected the proposed remediation; "
-                                         "do not execute it without new evidence."),
-                    )],
                     final_resolution="HUMAN_REVIEW DENIED: remediation was not executed",
-                    final_outcome="FAILED",
                 )
-                self.client.store_incident_memory(memory)
+                self._completed[key] = (result, memory)
+                self._store_memory(memory)
                 result.memory_stored = True
                 self._completed[key] = (result, memory)
                 self._terminal[key] = result.model_copy(deep=True)
@@ -131,7 +126,7 @@ class IncidentWorkflow:
                                 final_resolution=f"{source.upper()} {verification.result}: {verification.detail}",
                                 final_outcome=verification.result)
         self._completed[key] = (result, memory)
-        self.client.store_incident_memory(memory)
+        self._store_memory(memory)
         result.memory_stored = True
         self._pending.pop(key, None)
         return result.model_copy(deep=True)

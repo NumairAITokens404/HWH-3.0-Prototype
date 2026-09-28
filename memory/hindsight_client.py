@@ -74,6 +74,8 @@ class MockHindsightClient:
         matches = []
         query_tokens = _tokens(incident)
         for memory in self._memories.values():
+            if memory.record_kind != "experience":
+                continue
             past = memory.incident
             if past.incident_id == incident.incident_id:
                 continue

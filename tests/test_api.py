@@ -4,6 +4,8 @@ from pathlib import Path
 import tempfile
 import time
 import unittest
+import random
+from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 
@@ -45,6 +47,7 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(health.status_code, 200)
         self.assertEqual(health.json()["memory_backend"], "sqlite")
         self.assertTrue(health.json()["simulated_actions"])
+        self.assertEqual(self.client.get("/health").json(), health.json())
         capabilities = self.client.get("/api/capabilities").json()
         self.assertTrue(capabilities["persistent_memory"])
         self.assertTrue(capabilities["file_ingestion"])
@@ -290,6 +293,113 @@ class ApiTests(unittest.TestCase):
                 break
             time.sleep(0.02)
         self.assertEqual(progress[-1]["label"], "Uploaded remediation_history.json")
+
+    def test_all_cases_learn_resolve_and_retain_in_any_order(self):
+        for seed in (7, 29):
+            self.runtime.reset_ui_session()
+            cases = list(self.runtime.cases)
+            random.Random(seed).shuffle(cases)
+            for case in cases:
+                key = case.incident.incident_id
+                with self.subTest(seed=seed, incident=key):
+                    response = self.client.post(f"/api/ui/incidents/{key}/workflow")
+                    self.assertEqual(response.status_code, 200, response.text)
+                    result = response.json()
+                    if case.incident.severity in {"HIGH", "CRITICAL"}:
+                        self.assertEqual(result["status"], "HUMAN_APPROVAL_REQUIRED")
+                    if result["status"] == "HUMAN_APPROVAL_REQUIRED":
+                        self.assertTrue(result["memory_stored"])
+                        self.assertIsNotNone(self.runtime.ui_memory.get_incident_memory(result["observation_id"]))
+                        result = self.client.post(f"/api/ui/incidents/{key}/approval", json={
+                            "request_id": result["decision"]["request_id"], "approved": True, "reviewer": "test",
+                        }).json()
+                    self.assertEqual(result["status"], "SUCCESS")
+                    self.assertTrue(result["memory_stored"])
+                    record = self.runtime.ui_memory.get_incident_memory(key)
+                    self.assertEqual(record.final_outcome, "SUCCESS")
+                    self.assertEqual(self.client.post(f"/api/ui/incidents/{key}/workflow").json(), result)
+            self.assertEqual(self.runtime.ui_completed, len(cases))
+            evaluation = self.client.get("/api/ui/evaluation").json()
+            self.assertEqual(evaluation["progress"][0]["score"], 0)
+            self.assertGreater(evaluation["progress"][-1]["score"], 0)
+            for row in evaluation["cases"]:
+                self.assertNotIn(row["incidentId"], row["retrievedIds"])
+
+    def test_unresolved_observation_can_retry_after_new_evidence(self):
+        with patch.object(self.runtime, "history", []):
+            result = self.client.post("/api/ui/incidents/TEST-003/workflow").json()
+        self.assertEqual(result["status"], "INSUFFICIENT_EVIDENCE")
+        self.assertTrue(result["memory_stored"])
+        observation = self.runtime.ui_memory.get_incident_memory(result["observation_id"])
+        self.assertEqual(observation.record_kind, "observation")
+        self.assertIsNone(observation.final_outcome)
+        self.assertEqual(self.upload_demo_history().status_code, 201)
+        retried = self.client.post("/api/ui/incidents/TEST-003/workflow").json()
+        self.assertEqual(retried["status"], "HUMAN_APPROVAL_REQUIRED")
+
+    def test_dashboard_bank_pending_reviews_and_learning_survive_restart(self):
+        self.upload_demo_history()
+        waiting = self.client.post("/api/ui/incidents/HELD-007/workflow").json()
+        self.assertEqual(waiting["status"], "HUMAN_APPROVAL_REQUIRED")
+        reopened = ApiRuntime(self.settings)
+        try:
+            self.assertEqual(reopened._ui_session, self.runtime._ui_session)
+            self.assertEqual(len(reopened.memory_records()), len(self.runtime.memory_records()))
+            client = TestClient(create_app(self.settings, reopened))
+            result = client.post("/api/ui/incidents/HELD-007/approval", json={
+                "request_id": waiting["decision"]["request_id"], "approved": True, "reviewer": "test",
+            }).json()
+            self.assertEqual(result["status"], "SUCCESS")
+            self.assertTrue(result["memory_stored"])
+        finally:
+            reopened.workflow_store.close()
+
+    def test_failed_retain_can_retry_without_executing_twice(self):
+        self.upload_demo_history()
+        store = self.runtime.ui_memory.store_incident_memory
+        def fail_outcome(record):
+            if record.incident.incident_id == "TEST-001":
+                raise RuntimeError("memory temporarily offline")
+            return store(record)
+        with patch.object(self.runtime.ui_memory, "store_incident_memory", side_effect=fail_outcome):
+            self.assertEqual(self.client.post("/api/ui/incidents/TEST-001/workflow").status_code, 503)
+        run = self.runtime._ui_runs["TEST-001"]
+        with patch.object(run.workflow.world, "remediate", side_effect=AssertionError("Repeated execution")):
+            result = self.client.post("/api/ui/incidents/TEST-001/workflow").json()
+        self.assertEqual(result["status"], "SUCCESS")
+        self.assertTrue(result["memory_stored"])
+
+    def test_evaluation_error_does_not_hide_retained_outcome(self):
+        self.upload_demo_history()
+        with patch.object(self.runtime, "_measure_memory", side_effect=RuntimeError("recall unavailable")):
+            response = self.client.post("/api/ui/incidents/TEST-001/workflow")
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()["memory_stored"])
+        report = self.client.get("/api/ui/evaluation").json()
+        self.assertEqual(report["evaluationStatus"], "error")
+        self.assertEqual(report["evaluationError"], "recall unavailable")
+
+    def test_evaluation_uses_recalled_memory_without_model_generation(self):
+        self.upload_demo_history()
+        with patch.object(self.runtime, "llm") as llm:
+            report = self.runtime._measure_memory()
+        llm.generate.assert_not_called()
+        self.assertGreater(report["score"], 0)
+        self.assertEqual(len(report["rows"]), 12)
+        self.assertEqual(self.client.post("/api/ui/evaluation/refresh").status_code, 202)
+
+    def test_interrupted_evaluation_is_marked_pending_on_restart(self):
+        self.upload_demo_history()
+        self.runtime._evaluation_pending = True
+        self.runtime._persist_dashboard()
+        reopened = ApiRuntime(self.settings)
+        try:
+            self.assertTrue(reopened._evaluation_pending)
+            with patch.object(reopened, "_capture_evaluation") as capture:
+                reopened.evaluation_report()
+            capture.assert_called_once_with("Resumed memory evaluation")
+        finally:
+            reopened.workflow_store.close()
 
 
 if __name__ == "__main__":

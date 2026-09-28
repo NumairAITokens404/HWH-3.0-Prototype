@@ -9,6 +9,7 @@ import asyncio
 from hashlib import sha256
 from threading import Thread
 from typing import Protocol
+from types import SimpleNamespace
 
 from config import Settings
 from memory.hindsight_client import MemoryMatch, MockHindsightClient
@@ -62,7 +63,14 @@ class SDKTransport:
                 if operation == "retain":
                     return await client.aretain(**kwargs)
                 if operation == "recall":
-                    return await client.arecall(**kwargs)
+                    try:
+                        return await client.arecall(**kwargs)
+                    except ApiException as exc:
+                        # Hindsight creates banks on first retain. A new bank is
+                        # empty, not an unavailable service.
+                        if exc.status == 404 and "Bank '" in (exc.body or "") and "not found" in (exc.body or ""):
+                            return SimpleNamespace(results=[])
+                        raise
                 if operation == "version":
                     return await client.aget_version()
                 raise ValueError("Unknown transport operation")
@@ -88,8 +96,9 @@ class SDKTransport:
             if "error" in result:
                 raise result["error"]
             return result["value"]
-        except Exception:
-            raise HindsightUnavailable("Hindsight request failed; check server availability, credentials, and timeout") from None
+        except Exception as exc:
+            status = f" (HTTP {exc.status})" if isinstance(exc, ApiException) else ""
+            raise HindsightUnavailable(f"Hindsight {operation} failed{status}; check server availability, credentials, and timeout") from None
 
 
 def document_id(incident_id: str) -> str:
@@ -128,7 +137,8 @@ class HindsightMemoryClient:
                             content=memory.model_dump_json(), retain_async=False,
                             context="Synthetic incident history. Preserve failed actions and their order. Root causes may be hypotheses.",
                             metadata={"incident_id": memory.incident.incident_id, "schema": "aii-v1"},
-                            tags=["aii-v1"])
+                            tags=["aii-v1", memory.record_kind, f"service:{memory.incident.service}",
+                                  f"environment:{memory.incident.environment}"])
         if not response.success or response.var_async:
             raise HindsightUnavailable("Hindsight did not confirm synchronous retention")
 
@@ -158,8 +168,13 @@ class HindsightMemoryClient:
         if isinstance(limit, bool) or not isinstance(limit, int) or limit < 1:
             raise ValueError("limit must be a positive integer")
         response = self.transport.call("recall", bank_id=self.bank_id,
-                                       query=incident.model_dump_json(), types=["world", "experience"],
-                                       budget="mid", max_tokens=4096, tags=["aii-v1"], tags_match="all_strict")
+                                       query=(f"Find incident recovery history for service {incident.service}, "
+                                              f"environment {incident.environment}, error {incident.error_code}. "
+                                              f"Symptoms: {'; '.join(incident.symptoms)}. "
+                                              "Include original incident document IDs, failed attempts, "
+                                              "successful fixes and verified reprocessing outcomes."),
+                                       types=["world", "experience"], budget="high", max_tokens=8192,
+                                       tags=["aii-v1"], tags_match="all_strict")
         keys = dict.fromkeys(item.document_id for item in response.results
                              if item.document_id and item.document_id.startswith("aii-")
                              and not item.document_id.startswith("aii-failed-"))

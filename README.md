@@ -74,7 +74,7 @@ New incident ──> investigator <─────────────┘
 
 - **Hindsight** stores and retrieves complete incident and outcome memories. Its native retrieval handles embedding and semantic similarity when configured.
 - **Ollama + Qwen** produces a grounded explanation and proposal. Malformed, unsupported, or uncited output cannot reach an action tool.
-- **Python policy** owns authorization. Severity communicates urgency; action risk decides whether approval is required.
+- **Python policy** owns authorization. High/Critical incidents and medium/high risk actions require approval. Only low-risk actions on Low/Medium incidents can execute automatically.
 - **Execution** uses simulation by default. A fixed sandbox connector is available for controlled integration tests.
 - **Verification** checks service health and operation recovery independently, then records `SUCCESS`, `PARTIAL`, or `FAILED`.
 
@@ -89,10 +89,12 @@ The UI is designed to make the memory effect visible:
 1. **Reset demo** rotates to a clean dashboard bank on the configured memory backend.
 2. **Upload evidence** from a file or one of four demo bundles. With `MEMORY_BACKEND=hindsight`, Hindsight retains, embeds, and recalls that evidence.
 3. **Open an incident** to inspect the cited history, avoided failed fix, confidence, and policy decision.
-4. **Run the workflow.** Approval-gated actions appear in Approvals and the notification center.
-5. **Inspect the evaluation.** Every checkpoint reruns the complete held-out set. Workflow clicks never award points.
+4. **Run the workflow in any order.** When a simulated incident has no supporting history, the workflow retains matching records from the bundled historical dataset, then recalls and investigates again. It selects source records by service, environment, and error code; expected test answers are never used to recommend an action. High/Critical incidents always pause for approval.
+5. **Inspect the evaluation.** Hindsight evaluations run in the background and publish completed measurements of the same case set. They measure live recall and deterministic recovery validation, excluding model generation to avoid competing with retention on a local GPU. Workflow clicks never award points. The page polls for updates, shows case progress and errors, and provides Refresh metrics. Interrupted evaluations resume from the saved dashboard state.
 
-The Memory Explorer shows the evidence accumulated in the current session. Uploaded files remain visible while the API is running and can be deleted individually.
+The Memory Explorer shows uploaded history, pending reviews, unresolved investigation observations, and verified outcomes. Observations never count as successful recovery evidence. Failed and partial remediation outcomes remain searchable. The dashboard bank, upload index, pending reviews, completed workflows, and evaluation history survive API restarts through `WORKFLOW_DB_PATH`; Reset explicitly starts a new bank.
+
+The starter bundle contains only customer and payment history. Other simulated incident families learn their source history on demand. Connector workflows require operator-supplied evidence. If evidence is still insufficient, the incident remains retryable and its investigation is retained. Model abstention or an unsupported proposal falls back to a disclosed recommendation only when validated recovery history supports it.
 
 ## Demo walkthrough
 
@@ -124,10 +126,10 @@ These are separate decisions:
 
 | Dimension | Values | Purpose |
 | --- | --- | --- |
-| Incident severity | Low, medium, high, critical | Sets urgency and presentation. |
-| Action risk | Low, medium, high | Controls authorization. Low may auto-execute; medium and high require approval. |
+| Incident severity | Low, medium, high, critical | Sets urgency; High and Critical always require approval. |
+| Action risk | Low, medium, high | Medium and high require approval regardless of severity. |
 
-A critical incident can still have a known low-risk remediation. A medium-severity incident can require approval if its proposed action is risky.
+A critical incident with a low-risk remediation still requires review. A medium-severity incident also requires approval if its proposed action is medium or high risk.
 
 ## Quick start
 
@@ -182,6 +184,10 @@ Run this from the project root:
 API documentation: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
 
 Readiness check: [http://127.0.0.1:8000/api/health](http://127.0.0.1:8000/api/health). When Hindsight is configured but offline, the API remains available and reports `status: degraded`; memory operations stay disabled until the service reconnects.
+
+`/health` is an alias for `/api/health`. Vite proxies both health paths to the API during development.
+
+To verify actual retain, recall, approval, outcome feedback, evaluation, and restart persistence against your configured Hindsight/Ollama services, run `.venv\Scripts\python.exe -m tests.live_hindsight_learning`. It writes synthetic records into a new isolated Hindsight bank and saves a JSON report under `.runtime/learning-check-*/report.json`.
 
 ### 4. Start the dashboard
 

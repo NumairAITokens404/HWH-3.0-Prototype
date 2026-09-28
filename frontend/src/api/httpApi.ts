@@ -3,7 +3,7 @@ import type { EvaluationSummary, IncidentListItem, IncidentMemory, IncidentWorks
 
 type Evidence = { incident_id: string; similarity: number; root_cause?: string | null; outcomes: IncidentMemory['outcomes'] }
 type Investigation = { incident_id: string; status: string; likely_root_cause?: string | null; recommended_action?: { action_name: string; risk_level: 'LOW' | 'MEDIUM' | 'HIGH'; reason: string; confidence: number } | null; reasoning: string; historical_evidence: Evidence[]; method: IncidentWorkspace['investigation_method']; model_name?: string | null; fallback_reason?: string | null }
-type Workflow = { incident_id: string; status: string; investigation: Investigation; decision?: { status: IncidentWorkspace['policy_status']; risk_level: 'LOW' | 'MEDIUM' | 'HIGH'; request_id: string } | null; remediation?: { result: Result } | null; verification?: { service_healthy: boolean; operation_recovered: boolean; result: Result } | null; memory_stored: boolean }
+type Workflow = { incident_id: string; status: string; investigation: Investigation; decision?: { status: IncidentWorkspace['policy_status']; risk_level: 'LOW' | 'MEDIUM' | 'HIGH'; request_id: string } | null; remediation?: { result: Result } | null; reprocessing?: { result: Result } | null; verification?: { service_healthy: boolean; operation_recovered: boolean; result: Result } | null; memory_stored: boolean; learned_from?: string[]; observation_id?: string | null }
 type Detail = { incident: Omit<IncidentListItem, 'status' | 'occurred_at'>; investigation: Investigation; workflow?: Workflow | null }
 
 export function createHttpApi(baseUrl: string): IncidentApi {
@@ -15,12 +15,28 @@ export function createHttpApi(baseUrl: string): IncidentApi {
     if (!response.ok) throw new Error(payload && typeof payload === 'object' && 'detail' in payload ? String(payload.detail) : `API request failed (${response.status})`)
     return payload as T
   }
-  const uiStatus = (value?: string): IncidentWorkspace['workflow_status'] => ({ SUCCESS: 'RESOLVED', HUMAN_APPROVAL_REQUIRED: 'APPROVAL_REQUIRED', DENIED: 'INSUFFICIENT_EVIDENCE', BLOCKED: 'APPROVAL_REQUIRED', FAILED: 'PARTIAL' } as Record<string, IncidentWorkspace['workflow_status']>)[value ?? ''] ?? (value as IncidentWorkspace['workflow_status'] | undefined) ?? 'INVESTIGATING'
+  const uiStatus = (value?: string): IncidentWorkspace['workflow_status'] => ({ SUCCESS: 'RESOLVED', HUMAN_APPROVAL_REQUIRED: 'APPROVAL_REQUIRED', FAILED: 'PARTIAL' } as Record<string, IncidentWorkspace['workflow_status']>)[value ?? ''] ?? (value as IncidentWorkspace['workflow_status'] | undefined) ?? 'INVESTIGATING'
   function toWorkspace(item: Detail, workflow?: Workflow | null): IncidentWorkspace {
     if (workflow) workflows.set(workflow.incident_id, workflow)
+    else workflows.delete(item.incident.incident_id)
     const investigation = workflow?.investigation ?? item.investigation
     const action = investigation.recommended_action
-    return { incident: { ...item.incident, status: uiStatus(workflow?.status), occurred_at: '2026-09-28T00:00:00+00:00' }, likely_root_cause: investigation.likely_root_cause ?? 'Insufficient historical evidence', recommended_action: action?.action_name ?? 'No action recommended', confidence: action?.confidence ?? 0, risk_level: workflow?.decision?.risk_level ?? action?.risk_level ?? 'HIGH', reasoning: investigation.reasoning, investigation_method: investigation.method, model_name: investigation.model_name ?? undefined, fallback_reason: investigation.fallback_reason ?? undefined, evidence: investigation.historical_evidence, failed_actions_avoided: investigation.historical_evidence.flatMap((e) => e.outcomes.filter((o) => o.result === 'FAILED').map((o) => o.action)).filter((v, i, all) => all.indexOf(v) === i), policy_status: workflow?.decision?.status ?? (action?.risk_level === 'LOW' ? 'ALLOWED' : 'HUMAN_APPROVAL_REQUIRED'), workflow_status: uiStatus(workflow?.status), tool_acknowledgement: workflow?.remediation?.result, verification: workflow?.verification ?? undefined, memory_stored: workflow?.memory_stored ?? false }
+    const status = uiStatus(workflow?.status ?? (!action ? 'INSUFFICIENT_EVIDENCE' : undefined))
+    const needsReview = ['HIGH', 'CRITICAL'].includes(item.incident.severity) || action?.risk_level !== 'LOW'
+    return {
+      incident: { ...item.incident, status, occurred_at: '2026-09-28T00:00:00+00:00' },
+      likely_root_cause: investigation.likely_root_cause ?? 'Insufficient historical evidence',
+      recommended_action: action?.action_name ?? 'No action recommended', confidence: action?.confidence ?? 0,
+      risk_level: workflow?.decision?.risk_level ?? action?.risk_level ?? 'HIGH', reasoning: investigation.reasoning,
+      investigation_method: investigation.method, model_name: investigation.model_name ?? undefined,
+      fallback_reason: investigation.fallback_reason ?? undefined, evidence: investigation.historical_evidence,
+      failed_actions_avoided: investigation.historical_evidence.flatMap((e) => e.outcomes.filter((o) => o.result === 'FAILED').map((o) => o.action)).filter((v, i, all) => all.indexOf(v) === i),
+      policy_status: workflow?.decision?.status ?? (!action ? 'BLOCKED' : needsReview ? 'HUMAN_APPROVAL_REQUIRED' : 'ALLOWED'),
+      workflow_status: status, tool_acknowledgement: workflow?.remediation?.result,
+      reprocessing_result: workflow?.reprocessing?.result, verification: workflow?.verification ?? undefined,
+      memory_stored: workflow?.memory_stored ?? false, learned_from: workflow?.learned_from ?? [],
+      observation_id: workflow?.observation_id,
+    }
   }
   const getDetail = (id: string) => request<Detail>(`/api/ui/incidents/${encodeURIComponent(id)}`)
   return {
@@ -35,6 +51,7 @@ export function createHttpApi(baseUrl: string): IncidentApi {
     async deleteUpload(id) { await request(`/api/ui/uploads/${encodeURIComponent(id)}`, { method: 'DELETE' }) },
     async advanceUpload(job) { return job },
     getEvaluation: (): Promise<EvaluationSummary> => request('/api/ui/evaluation'),
+    async refreshEvaluation() { await request('/api/ui/evaluation/refresh', { method: 'POST' }) },
     async resetDemo() { await request('/api/ui/reset', { method: 'POST' }) },
   }
 }

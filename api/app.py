@@ -44,6 +44,7 @@ def create_app(settings: Settings | None = None, runtime: ApiRuntime | None = No
             raise HTTPException(status_code=503, detail=str(exc)) from exc
         raise HTTPException(status_code=409, detail=str(exc)) from exc
 
+    @app.get("/health", response_model=HealthResponse, tags=["system"])
     @app.get("/api/health", response_model=HealthResponse, tags=["system"])
     def health():
         memory_ready, detail = runtime.memory_status()
@@ -137,7 +138,7 @@ def create_app(settings: Settings | None = None, runtime: ApiRuntime | None = No
             stored = runtime.case_result(case.incident.incident_id)
             status = (stored.status if stored else "INVESTIGATING")
             status = {"SUCCESS": "RESOLVED", "HUMAN_APPROVAL_REQUIRED": "APPROVAL_REQUIRED",
-                      "DENIED": "INSUFFICIENT_EVIDENCE", "BLOCKED": "APPROVAL_REQUIRED",
+                      "DENIED": "DENIED", "BLOCKED": "BLOCKED",
                       "FAILED": "PARTIAL"}.get(status, status)
             items.append(case.incident.model_dump() | {"status": status,
                          "occurred_at": "2026-09-28T00:00:00+00:00"})
@@ -203,6 +204,11 @@ def create_app(settings: Settings | None = None, runtime: ApiRuntime | None = No
         except (ValueError, KeyError, RuntimeError, HindsightUnavailable) as exc:
             domain_error(exc)
 
+    @app.post("/api/ui/evaluation/refresh", status_code=202, tags=["ui"])
+    def refresh_ui_evaluation():
+        runtime.refresh_evaluation()
+        return {"status": "accepted"}
+
     @app.get("/api/ui/evaluation", tags=["ui"])
     def ui_evaluation():
         try:
@@ -221,8 +227,11 @@ def create_app(settings: Settings | None = None, runtime: ApiRuntime | None = No
             metric("Retrieval precision", "retrievalPrecision"),
             metric("Failed-fix avoidance", "failedFixAvoidance"),
         ], "progress": report["progress"], "completed": report["completed"],
+            "evaluationStatus": report["evaluation_status"], "evaluationError": report["evaluation_error"],
+            "evaluatedCases": report["evaluated_cases"],
             "total": report["total"], "backend": report["backend"], "bank": report["bank"],
-            "methodology": ("The same held-out incidents are rerun at every checkpoint. "
+            "methodology": ("The same held-out incidents are evaluated using live memory recall and deterministic recovery validation. "
+                            "This measures memory-supported recommendations; model generation is excluded. "
                             "Scores come from accepted recommendations and recalled source IDs; "
                             "workflow clicks do not award points."),
             "cases": current["rows"]}
