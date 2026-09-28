@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 from threading import RLock
 from uuid import uuid4
+from datetime import datetime, timezone
 
 from api.models import ApprovalSubmission, DemoScenarioInfo, DemoScenarioName
 from config import Settings
@@ -56,8 +57,10 @@ class ApiRuntime:
         # outcomes remain session-only so earlier demos do not prepopulate it.
         self.ui_memory = MockHindsightClient()
         self._ui_source_names: dict[str, str] = {}
+        self._ui_uploads: dict[str, dict] = {}
         self._ui_runs: dict[str, _Run] = {}
         self._ui_results: dict[str, WorkflowResult] = {}
+        self._ui_completion_order: list[str] = []
         self.llm = create_llm(settings)
         self.max_active_runs = max_active_runs
         self._runs: dict[str, _Run] = {}
@@ -136,7 +139,38 @@ class ApiRuntime:
             result = ingest_incident_history(content, filename, self.memory, self.settings.memory_backend)
             ingest_incident_history(content, filename, self.ui_memory, "ui-session")
             self._ui_source_names.update({incident_id: filename for incident_id in result.incident_ids})
-            return result
+            upload_id = "upload-" + uuid4().hex[:12]
+            self._ui_uploads[upload_id] = {
+                "id": upload_id, "fileName": result.source_filename, "size": len(content),
+                "stage": "completed", "progress": 100,
+                "chunks": result.incident_count + result.failed_remediation_chunk_count,
+                "failedRemediationChunks": result.failed_remediation_chunk_count,
+                "storedIncidents": result.incident_count,
+                "incidentIds": list(result.incident_ids), "content": bytes(content),
+                "createdAt": datetime.now(timezone.utc).isoformat(),
+            }
+            return result.model_copy(update={"upload_id": upload_id})
+
+    def uploads(self) -> list[dict]:
+        with self._lock:
+            return [{key: value for key, value in upload.items() if key != "content"}
+                    for upload in reversed(self._ui_uploads.values())]
+
+    def delete_upload(self, upload_id: str) -> None:
+        with self._lock:
+            if self._ui_uploads.pop(upload_id, None) is None:
+                raise KeyError("Unknown upload")
+            uploads = list(self._ui_uploads.values())
+            self.ui_memory = MockHindsightClient()
+            self._ui_source_names.clear()
+            self._ui_runs.clear()
+            self._ui_results.clear()
+            self._ui_completion_order.clear()
+            for upload in uploads:
+                result = ingest_incident_history(upload["content"], upload["fileName"],
+                                                 self.ui_memory, "ui-session")
+                self._ui_source_names.update({incident_id: upload["fileName"]
+                                              for incident_id in result.incident_ids})
 
     def memory_records(self):
         with self._lock:
@@ -144,12 +178,18 @@ class ApiRuntime:
             return [record for incident_id in ids
                     if (record := self.ui_memory.get_incident_memory(incident_id)) is not None]
 
+    def memory_source(self, incident_id: str) -> str:
+        with self._lock:
+            return self._ui_source_names.get(incident_id, "workflow outcome")
+
     def reset_ui_session(self) -> None:
         with self._lock:
             self.ui_memory = MockHindsightClient()
             self._ui_source_names.clear()
+            self._ui_uploads.clear()
             self._ui_runs.clear()
             self._ui_results.clear()
+            self._ui_completion_order.clear()
 
     @property
     def ui_ready(self) -> bool:
@@ -183,6 +223,8 @@ class ApiRuntime:
             if result.status == "HUMAN_APPROVAL_REQUIRED":
                 self._ui_runs[incident_id] = run
             self._ui_results[incident_id] = result.model_copy(deep=True)
+            if result.status in {"SUCCESS", "FAILED", "PARTIAL"}:
+                self._ui_completion_order.append(incident_id)
             return result
 
     def submit_ui_approval(self, incident_id: str, submission: ApprovalSubmission,
@@ -195,9 +237,28 @@ class ApiRuntime:
                                 reviewer=reviewer)
             result = run.workflow.run(run.scenario.incident, approval)
             self._ui_results[incident_id] = result.model_copy(deep=True)
+            if (result.status in {"SUCCESS", "FAILED", "PARTIAL"}
+                    and incident_id not in self._ui_completion_order):
+                self._ui_completion_order.append(incident_id)
             if result.status != "BLOCKED":
                 self._ui_runs.pop(incident_id, None)
             return result
+
+    def evaluation_progress(self) -> list[dict]:
+        with self._lock:
+            total = len(self.cases)
+            correct = 0
+            points = [{"step": 0, "label": "Start", "completed": 0,
+                       "correct": 0, "score": 0.0}]
+            for step, incident_id in enumerate(self._ui_completion_order, start=1):
+                case = self.case(incident_id)
+                result = self._ui_results[incident_id]
+                action = result.investigation.recommended_action
+                correct += int(action is not None and action.action_name == case.expected_action)
+                points.append({"step": step, "label": incident_id, "completed": step,
+                               "correct": correct,
+                               "score": round(100 * correct / max(1, total), 1)})
+            return points
 
     def search_failed_remediations(self, query: str, limit: int) -> FailedRemediationSearchResult:
         with self._lock:
