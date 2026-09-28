@@ -25,7 +25,7 @@ def create_app(settings: Settings | None = None, runtime: ApiRuntime | None = No
     app.state.runtime = runtime
     approval_auth = ApprovalAuthenticator(settings.approval_credentials)
     app.add_middleware(CORSMiddleware, allow_origins=list(settings.api_cors_origins),
-                       allow_credentials=False, allow_methods=["GET", "POST"],
+                       allow_credentials=False, allow_methods=["GET", "POST", "DELETE"],
                        allow_headers=["Content-Type", "Authorization"])
 
     @app.get("/", tags=["system"])
@@ -77,6 +77,18 @@ def create_app(settings: Settings | None = None, runtime: ApiRuntime | None = No
             return await run_in_threadpool(runtime.ingest, content, filename)
         except (ValueError, KeyError, RuntimeError, HindsightUnavailable) as exc:
             domain_error(exc)
+
+    @app.post("/api/ui/uploads", status_code=202, tags=["ui"])
+    async def queue_ui_upload(file: UploadFile = File(...)):
+        filename = file.filename or ""
+        suffix = "." + filename.rsplit(".", 1)[-1].casefold() if "." in filename else ""
+        if suffix not in SUPPORTED_EXTENSIONS:
+            raise HTTPException(status_code=415, detail="Supported formats: JSON, CSV, Markdown, TXT, LOG, and PDF")
+        content = await file.read(settings.api_upload_max_bytes + 1)
+        await file.close()
+        if len(content) > settings.api_upload_max_bytes:
+            raise HTTPException(status_code=413, detail="Uploaded file exceeds API_UPLOAD_MAX_BYTES")
+        return runtime.queue_ingest(content, filename)
 
     @app.get("/api/memory/failed-remediations", response_model=FailedRemediationSearchResult,
              tags=["memory"])

@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowDown, BrainCircuit, CheckCircle2, Database, FileCheck2, FileJson, Layers3, RefreshCw, Trash2, UploadCloud, XCircle } from 'lucide-react'
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { api } from '../api'
 import { EmptyState, PageHeader, StatusBadge, WorkflowNotice } from '../components/ui'
 import type { UploadJob, UploadStage } from '../types/domain'
@@ -32,7 +32,18 @@ export function UploadPage() {
   const [dataset, setDataset] = useState<DatasetChoice>('starter')
   const inputRef = useRef<HTMLInputElement>(null)
   const retryFiles = useRef(new Map<string, File>())
-  const { data: stored = [], isLoading } = useQuery({ queryKey: ['uploads'], queryFn: () => api.listUploads() })
+  const { data: stored = [], isLoading } = useQuery({
+    queryKey: ['uploads'], queryFn: () => api.listUploads(),
+    refetchInterval: (query) => query.state.data?.some((job) => !['completed', 'failed'].includes(job.stage)) ? 1000 : false,
+  })
+
+  const completedKey = stored.filter((job) => job.stage === 'completed').map((job) => job.id).join(',')
+  useEffect(() => {
+    if (!completedKey) return
+    for (const key of ['incidents', 'memory', 'overview', 'evaluation', 'pending-approvals']) {
+      queryClient.invalidateQueries({ queryKey: [key] })
+    }
+  }, [completedKey, queryClient])
 
   async function refreshDashboard() {
     await Promise.all([
@@ -51,7 +62,7 @@ export function UploadPage() {
     const failed = created.filter((job) => job.stage === 'failed')
     failed.forEach((job) => retryFiles.current.set(job.id, files[created.indexOf(job)]))
     setFailures((current) => [...failed, ...current])
-    if (created.some((job) => job.stage === 'completed')) await refreshDashboard()
+    await queryClient.invalidateQueries({ queryKey: ['uploads'] })
   }
 
   async function retry(job: UploadJob) {

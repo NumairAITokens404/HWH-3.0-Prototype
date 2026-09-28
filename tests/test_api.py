@@ -2,6 +2,7 @@
 
 from pathlib import Path
 import tempfile
+import time
 import unittest
 
 from fastapi.testclient import TestClient
@@ -262,6 +263,33 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(self.client.delete(f"/api/ui/uploads/{upload_id}").status_code, 204)
         self.assertEqual(self.client.get("/api/ui/uploads").json(), [])
         self.assertEqual(self.client.get("/api/ui/incidents").json(), [])
+
+    def test_ui_upload_is_queued_and_completes(self):
+        response = self.client.post("/api/ui/uploads", files={
+            "file": ("remediation_history.json", (ROOT / "data" / "remediation_history.json").read_bytes(),
+                     "application/json"),
+        })
+        self.assertEqual(response.status_code, 202)
+        upload_id = response.json()["id"]
+        self.assertIn(response.json()["stage"], {"uploading", "embedding"})
+        job = response.json()
+        for _ in range(100):
+            jobs = self.client.get("/api/ui/uploads").json()
+            job = next(item for item in jobs if item["id"] == upload_id)
+            if job["stage"] in {"completed", "failed"}:
+                break
+            time.sleep(0.02)
+        self.assertEqual(job["stage"], "completed")
+        self.assertEqual(job["storedIncidents"], 18)
+        self.assertEqual(len(self.client.get("/api/ui/incidents").json()), len(self.runtime.cases))
+        # The real evaluation deliberately continues after storage completes.
+        # Wait for its checkpoint before removing this test's SQLite directory.
+        for _ in range(100):
+            progress = self.client.get("/api/ui/evaluation").json()["progress"]
+            if progress[-1]["label"] == "Uploaded remediation_history.json":
+                break
+            time.sleep(0.02)
+        self.assertEqual(progress[-1]["label"], "Uploaded remediation_history.json")
 
 
 if __name__ == "__main__":

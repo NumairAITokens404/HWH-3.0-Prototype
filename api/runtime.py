@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass
 from threading import RLock
+from threading import Thread
 from uuid import uuid4
 from datetime import datetime, timezone
 
@@ -154,7 +155,9 @@ class ApiRuntime:
     def ingest(self, content: bytes, filename: str) -> IngestionResult:
         with self._lock:
             if not self._evaluation_points:
-                self._capture_evaluation("Empty memory")
+                self._evaluation_points.append({"step": 0, "label": "Empty memory",
+                                                "memoryRecords": 0,
+                                                **self._empty_measurement()})
             result = ingest_incident_history(content, filename, self.ui_memory,
                                              self.settings.memory_backend)
             self._ui_source_names.update({incident_id: filename for incident_id in result.incident_ids})
@@ -170,6 +173,68 @@ class ApiRuntime:
             }
             self._capture_evaluation(f"Uploaded {result.source_filename}")
             return result.model_copy(update={"upload_id": upload_id})
+
+    def queue_ingest(self, content: bytes, filename: str) -> dict:
+        """Queue slow Hindsight ingestion so the dashboard can show progress immediately."""
+        upload_id = "upload-" + uuid4().hex[:12]
+        with self._lock:
+            self._ui_uploads[upload_id] = {
+                "id": upload_id, "fileName": filename, "size": len(content),
+                "stage": "uploading", "progress": 5, "chunks": 0,
+                "failedRemediationChunks": 0, "storedIncidents": 0,
+                "incidentIds": [], "content": bytes(content),
+                "createdAt": datetime.now(timezone.utc).isoformat(),
+            }
+            queued = {key: value for key, value in self._ui_uploads[upload_id].items() if key != "content"}
+        Thread(target=self._run_queued_ingest, args=(upload_id,), daemon=True,
+               name=f"ingest-{upload_id}").start()
+        return queued
+
+    def _run_queued_ingest(self, upload_id: str) -> None:
+        with self._lock:
+            upload = self._ui_uploads.get(upload_id)
+            if upload is None:
+                return
+            content, filename = upload["content"], upload["fileName"]
+            upload.update(stage="embedding", progress=45)
+        try:
+            # Hindsight retention can invoke local embeddings and Ollama. Keep it
+            # outside the runtime lock so status and health endpoints stay responsive.
+            result = ingest_incident_history(content, filename, self.ui_memory,
+                                             self.settings.memory_backend)
+            with self._lock:
+                upload = self._ui_uploads.get(upload_id)
+                if upload is None:
+                    return
+                if not self._evaluation_points:
+                    self._evaluation_points.append({"step": 0, "label": "Empty memory",
+                                                    "memoryRecords": 0,
+                                                    **self._empty_measurement()})
+                self._ui_source_names.update({incident_id: filename for incident_id in result.incident_ids})
+                upload.update(stage="completed", progress=100,
+                              chunks=result.incident_count + result.failed_remediation_chunk_count,
+                              failedRemediationChunks=result.failed_remediation_chunk_count,
+                              storedIncidents=result.incident_count,
+                              incidentIds=list(result.incident_ids))
+        except Exception as exc:
+            with self._lock:
+                upload = self._ui_uploads.get(upload_id)
+                if upload is not None:
+                    upload.update(stage="failed", progress=0, error=str(exc))
+            return
+        # Evaluation is real but independent: a measurement failure must not
+        # relabel successfully retained evidence as a failed upload.
+        try:
+            measurement = self._measure_memory()
+            with self._lock:
+                if upload_id in self._ui_uploads:
+                    self._evaluation_points.append({
+                        "step": len(self._evaluation_points),
+                        "label": f"Uploaded {result.source_filename}",
+                        "memoryRecords": len(self.memory_records()), **measurement,
+                    })
+        except Exception:
+            return
 
     def uploads(self) -> list[dict]:
         with self._lock:
