@@ -10,14 +10,26 @@ The local demo can use SQLite and Ollama without Hindsight. The following steps 
 
 Install/start Docker Desktop with Linux containers. Configure the server's LLM provider and key using the official [installation guide](https://hindsight.vectorize.io/developer/installation) and [configuration reference](https://hindsight.vectorize.io/developer/configuration). The server needs a model for extraction even though this project's investigator is still rule-based.
 
-Once `HINDSIGHT_API_LLM_API_KEY` is set in your shell for the server's configured provider, the official all-in-one image can be started from PowerShell with a persistent named volume:
+For a fully local setup, Hindsight runs in Docker and calls Ollama on the Windows host. This needs no API key. Pull the lightweight extraction model first:
 
 ```powershell
-docker run -d --name aii-hindsight --restart unless-stopped --shm-size=1g -p 127.0.0.1:8888:8888 -p 127.0.0.1:9999:9999 -e HINDSIGHT_API_LLM_API_KEY -v aii-hindsight-data:/home/hindsight/.pg0 ghcr.io/vectorize-io/hindsight:latest
+ollama pull qwen3:4b
+docker run -d --name aii-hindsight --restart unless-stopped --shm-size=1g `
+  -p 127.0.0.1:8888:8888 -p 127.0.0.1:9999:9999 `
+  -e HINDSIGHT_API_WORKER_ID=aii-hindsight `
+  -e HINDSIGHT_API_LLM_PROVIDER=ollama `
+  -e HINDSIGHT_API_LLM_BASE_URL=http://host.docker.internal:11434/v1 `
+  -e HINDSIGHT_API_LLM_MODEL=qwen3:4b `
+  -e HINDSIGHT_API_ENABLE_OBSERVATIONS=false `
+  -e HINDSIGHT_API_ENABLE_AUTO_CONSOLIDATION=false `
+  -e HINDSIGHT_API_CONSOLIDATION_RECONCILE_INTERVAL_SECONDS=0 `
+  -e HINDSIGHT_API_MENTAL_MODEL_REFRESH_TICK_SECONDS=0 `
+  -v aii-hindsight-data:/home/hindsight/.pg0 `
+  ghcr.io/vectorize-io/hindsight:latest
 docker logs aii-hindsight
 ```
 
-This example uses the image's default provider/model settings; pass the provider-specific settings from the configuration reference if yours differ. Wait for startup. The API is on port 8888 and the UI on port 9999. The `latest` image can change; record or pin a tested image version for a repeatable demo. This container command has not been executed in this workspace.
+This keeps Hindsight's real extraction, embeddings, storage, and recall. It disables optional observation consolidation because that background workload competes with interactive ingestion on one local GPU. The incident investigator may still use the larger `qwen3.5:9b` configured in the project `.env`. Wait for startup. The API is on port 8888 and the Hindsight UI on port 9999.
 
 ### Hosted service
 

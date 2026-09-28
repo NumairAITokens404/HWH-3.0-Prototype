@@ -19,7 +19,7 @@ type DatasetChoice = 'starter' | 'expanded' | 'full' | 'logs'
 const groups = [0, 3, 6, 9, 12, 15]
 const demoRecords = demoHistory as unknown[]
 const datasets: Record<DatasetChoice, { label: string; records: unknown[]; format: 'json' | 'log' }> = {
-  starter: { label: 'Starter · 6 incident families', records: groups.map((index) => demoRecords[index]), format: 'json' },
+  starter: { label: 'Quick demo · 2 incident families', records: groups.slice(0, 2).map((index) => demoRecords[index]), format: 'json' },
   expanded: { label: 'Expanded · 12 varied incidents', records: groups.flatMap((index) => demoRecords.slice(index, index + 2)), format: 'json' },
   full: { label: 'Full · 18 incidents / 54 outcomes', records: demoRecords, format: 'json' },
   logs: { label: 'Operational log · 6 embedded records', records: groups.map((index) => demoRecords[index]), format: 'log' },
