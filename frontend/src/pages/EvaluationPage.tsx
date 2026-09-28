@@ -1,11 +1,12 @@
 import { useQuery } from '@tanstack/react-query'
 import { ArrowDown, ArrowRight, ArrowUp, Database, FlaskConical, Info, Minus } from 'lucide-react'
 import { api } from '../api'
-import { LoadingState, PageHeader, StatusBadge } from '../components/ui'
+import { ErrorState, LoadingState, PageHeader, StatusBadge } from '../components/ui'
 
 export function EvaluationPage() {
-  const { data, isLoading } = useQuery({ queryKey: ['evaluation'], queryFn: () => api.getEvaluation() })
-  if (isLoading || !data) return <LoadingState label="Running memory evaluation" />
+  const { data, isLoading, isError, error } = useQuery({ queryKey: ['evaluation'], queryFn: () => api.getEvaluation(), retry: 1 })
+  if (isLoading) return <LoadingState label="Running memory evaluation" />
+  if (isError || !data) return <ErrorState title="Evaluation unavailable" detail={error instanceof Error ? error.message : 'Check the API and Hindsight connection.'} />
   const chart = data.progress.map((point, index) => ({ ...point, x: data.progress.length === 1 ? 0 : index * 100 / (data.progress.length - 1), y: 100 - point.score }))
   const backendLabel = data.backend === 'hindsight' ? 'Live Hindsight memory' : `${data.backend} development backend`
   return <><PageHeader eyebrow="Measured memory evaluation" title="Does memory actually improve the agent?" description="The same held-out incidents are rerun after every evidence or outcome checkpoint." />

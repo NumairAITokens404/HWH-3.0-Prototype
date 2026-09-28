@@ -300,6 +300,17 @@ class ApiRuntime:
                 "failedFixAvoidance": round(100 * avoided / avoidable, 1) if avoidable else 0.0,
                 "rows": rows}
 
+    def _empty_measurement(self) -> dict:
+        """Known empty-bank baseline without contacting the remote service."""
+        total = len(self.cases)
+        return {"correct": 0, "accepted": 0, "total": total, "score": 0.0,
+                "coverage": 0.0, "retrievalPrecision": 0.0, "failedFixAvoidance": 0.0,
+                "rows": [{"incidentId": case.incident.incident_id,
+                          "expectedAction": case.expected_action, "recommendedAction": None,
+                          "status": "INSUFFICIENT_EVIDENCE", "retrievedIds": [],
+                          "relevantIds": sorted(case.relevant_incident_ids),
+                          "method": "empty_memory_baseline"} for case in self.cases]}
+
     def _capture_evaluation(self, label: str) -> None:
         measurement = self._measure_memory()
         self._evaluation_points.append({"step": len(self._evaluation_points), "label": label,
@@ -308,7 +319,9 @@ class ApiRuntime:
     def evaluation_progress(self) -> list[dict]:
         with self._lock:
             if not self._evaluation_points:
-                self._capture_evaluation("Empty memory")
+                self._evaluation_points.append({"step": 0, "label": "Empty memory",
+                                                "memoryRecords": 0,
+                                                **self._empty_measurement()})
             return [dict(point) for point in self._evaluation_points]
 
     def evaluation_report(self) -> dict:

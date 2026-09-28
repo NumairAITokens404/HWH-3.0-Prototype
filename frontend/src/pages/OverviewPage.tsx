@@ -2,13 +2,14 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowRight, CheckCircle2, Clock3, Database, RotateCcw, ShieldAlert, Sparkles } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { api } from '../api'
-import { LoadingState, PageHeader, StatusBadge } from '../components/ui'
+import { ErrorState, LoadingState, PageHeader, StatusBadge } from '../components/ui'
 
 export function OverviewPage() {
   const queryClient = useQueryClient()
-  const { data, isLoading } = useQuery({ queryKey: ['overview'], queryFn: () => api.getOverview() })
+  const { data, isLoading, isError, error } = useQuery({ queryKey: ['overview'], queryFn: () => api.getOverview(), retry: 1 })
   const reset = useMutation({ mutationFn: () => api.resetDemo(), onSuccess: () => queryClient.invalidateQueries() })
-  if (isLoading || !data) return <LoadingState />
+  if (isLoading) return <LoadingState />
+  if (isError || !data) return <ErrorState title="Memory service unavailable" detail={error instanceof Error ? error.message : 'Check the API and Hindsight connection.'} />
   const stats = [
     { label: 'Active incidents', value: data.active, icon: ShieldAlert, tone: 'text-[#dc5d50]', path: '/incidents' },
     { label: 'Awaiting approval', value: data.pendingApprovals, icon: Clock3, tone: 'text-[#c48732]', path: '/approvals' },

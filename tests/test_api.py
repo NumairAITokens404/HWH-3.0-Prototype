@@ -56,6 +56,22 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(cors.status_code, 200)
         self.assertEqual(cors.headers["access-control-allow-origin"], "http://localhost:5173")
 
+    def test_empty_dashboard_stays_available_when_hindsight_is_offline(self):
+        settings = Settings(data_dir=ROOT / "data", memory_backend="hindsight",
+                            hindsight_base_url="http://127.0.0.1:1", hindsight_timeout=0.1,
+                            workflow_db_path=Path(self._temp.name) / "offline-workflows.sqlite3")
+        runtime = ApiRuntime(settings)
+        try:
+            client = TestClient(create_app(settings, runtime))
+            overview = client.get("/api/ui/overview")
+            self.assertEqual(overview.status_code, 200)
+            self.assertEqual(overview.json()["learningScore"], 0)
+            evaluation = client.get("/api/ui/evaluation")
+            self.assertEqual(evaluation.status_code, 200)
+            self.assertEqual(evaluation.json()["progress"][0]["label"], "Empty memory")
+        finally:
+            runtime.workflow_store.close()
+
     def test_upload_and_search_failed_remediation_memory(self):
         _, history, _ = load_datasets(ROOT / "data")
         record = history[0].model_copy(deep=True)
