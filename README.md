@@ -1,157 +1,279 @@
+<div align="center">
+
 # Adaptive Incident Intelligence
 
-### Remember failed fixes. Recommend proven actions. Verify recovery.
+**Remember failed fixes. Recommend proven actions. Verify recovery.**
 
-Incident responders often repeat work because the useful parts of earlier incidents are scattered across logs, tickets, and individual memory. A retry may even be repeated before anyone fixes the condition that caused it to fail.
+An evidence-backed incident response platform powered by Hindsight memory, guarded local AI, and independent recovery checks.
 
-Adaptive Incident Intelligence turns every incident into reusable evidence. It retrieves similar cases, uses a local LLM to explain the strongest historical recovery sequence, applies a deterministic risk policy, simulates the approved action, retries the failed operation, verifies recovery, and stores the observed result.
+![Adaptive Incident Intelligence](docs/assets/adaptive-incident-intelligence-banner.png)
 
-## Why this matters
+![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/API-FastAPI-009688?logo=fastapi&logoColor=white)
+![React](https://img.shields.io/badge/UI-React%20%2B%20TypeScript-149ECA?logo=react&logoColor=white)
+![Hindsight](https://img.shields.io/badge/Memory-Hindsight-7C3AED)
+![Ollama](https://img.shields.io/badge/AI-Ollama%20%2B%20Qwen-111827)
+![Tests](https://img.shields.io/badge/Tests-112%20passing-16A34A)
 
-For an on-call engineer, the system answers four practical questions:
+</div>
 
-1. **Have we seen this failure before?**
-2. **What worked, and what already failed?**
-3. **Can this action run automatically, or does a person need to approve it?**
-4. **Did the service and the affected operation actually recover?**
+## The problem
 
-The system preserves failed and partial outcomes as evidence. A successful tool response alone never counts as recovery.
+Incident responders lose time reconstructing what happened before. Logs, tickets, attempted fixes, and final outcomes live in different places. This causes teams to repeat failed actions, trust incomplete recovery signals, and forget the sequence that actually solved an incident.
 
-## End-to-end flow
+## Our solution
+
+Adaptive Incident Intelligence turns every incident into reusable operational memory. It:
+
+1. ingests past incidents, logs, and remediation outcomes;
+2. retrieves the most relevant historical evidence with Hindsight;
+3. uses a local LLM to explain a supported recovery action;
+4. applies deterministic risk and approval rules in Python;
+5. reprocesses the failed operation and independently verifies recovery; and
+6. writes the observed result back to memory for the next incident.
+
+The model proposes and explains. Python validates citations, classifies action risk, binds approvals, and controls execution.
+
+## Why it stands out
+
+| Capability | What it gives the responder |
+| --- | --- |
+| **Failure-aware memory** | Failed and partial fixes remain searchable, so the agent can avoid repeating them. |
+| **Ordered evidence** | The system knows that a retry failed *before* a fix and succeeded *after* it. |
+| **Safe action boundary** | Low-risk actions may run automatically; riskier actions pause for a named human decision. |
+| **Recovery proof** | A successful tool response is insufficient. Service health and the original operation must recover. |
+| **Visible learning** | The dashboard begins empty and advances its evaluation only as verified workflows complete. |
+| **Local-first stack** | Ollama and SQLite support a private demo without a paid model API; Hindsight is the primary memory path. |
+
+## Architecture
+
+![Adaptive Incident Intelligence system architecture](docs/assets/system-architecture.svg)
+
+### End-to-end request path
 
 ```text
-Incident
-   |
-   v
-Retrieve similar incidents and ordered outcomes
-   |
-   v
-Local LLM proposal (Qwen3.5 9B) + evidence citations
-   |
-   v
-Python validation: supported action, real citations, fixed risk policy
-   |
-   +-- low risk --------------------> simulated remediation
-   |
-   +-- medium/high risk --> human approval --> simulated remediation
-                                              |
-                                              v
-                                      reprocess failed work
-                                              |
-                                              v
-                                  verify service + operation recovery
-                                              |
-                                              v
-                                  store success / failure / partial result
+Files / logs ──> validate ──> chunk ──> Hindsight memory
+                                            │
+New incident ──> investigator <─────────────┘
+                       │
+              evidence-backed proposal
+                       │
+        Python schema, citation, and risk checks
+                       │
+          ┌────────────┴────────────┐
+     low-risk action        medium/high-risk action
+       auto execute             human approval
+          └────────────┬────────────┘
+                       │
+          reprocess ──> verify recovery
+                       │
+             store observed outcome
 ```
 
-The LLM proposes and explains. Python owns citation checks, action support, risk classification, approval binding, and execution. Unsupported model output cannot reach an action tool.
+### Trust boundaries
 
-## Working prototype
+- **Hindsight** stores and retrieves complete incident and outcome memories. Its native retrieval handles embedding and semantic similarity when configured.
+- **Ollama + Qwen** produces a grounded explanation and proposal. Malformed, unsupported, or uncited output cannot reach an action tool.
+- **Python policy** owns authorization. Severity communicates urgency; action risk decides whether approval is required.
+- **Execution** uses simulation by default. A fixed sandbox connector is available for controlled integration tests.
+- **Verification** checks service health and operation recovery independently, then records `SUCCESS`, `PARTIAL`, or `FAILED`.
 
-- **Local reasoning:** Ollama with `qwen3.5:9b`, selected for the project machine's RTX 5070 Ti 12 GB GPU. The measured run used an 8,192-token context and loaded fully on the GPU.
-- **Persistent memory without Docker:** SQLite stores incidents and outcomes across runs.
-- **Hindsight-ready:** the official SDK adapter, backend selection, and offline contract tests are implemented. A live Hindsight service remains optional.
-- **History ingestion:** validated JSON, CSV, Markdown, logs, and text-based PDFs preserve complete records and create searchable failed-remediation chunks; Hindsight handles embeddings when configured.
-- **Durable control plane:** pending approvals and audit events persist in SQLite, including a pre-execution checkpoint that prevents automatic duplicate actions after an interrupted run.
-- **Authenticated approvals:** optional bearer credentials derive the reviewer identity on the server and reject browser-supplied identity spoofing.
-- **Sandbox connector boundary:** approved actions can use a fixed HTTP sandbox with durable at-most-once receipts; simulation remains the default.
-- **Complete simulated loop:** investigation, policy checks, human approval pause/resume, remediation, retry, independent verification, and memory feedback.
-- **Structured and guarded:** Pydantic validates every input and model proposal; malformed, truncated, unsupported, or uncited output is rejected or disclosed as fallback.
-- **Synthetic benchmark:** 18 historical incidents, 54 ordered outcomes, and 6 held-out cases across six failure families.
+See [architecture and trust boundaries](docs/architecture.md) for the component-level design.
 
-## Measured result
+## Live learning demo
 
-On the six synthetic held-out cases, using `qwen3.5:9b` locally:
+![Five-step learning loop](docs/assets/learning-loop.svg)
 
-| Evaluation | Raw action accuracy | Accepted action accuracy | Accepted coverage | Failed actions repeated | Model fallbacks |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| Without incident memory | 1/6 | 0/6 | 0/6 | 0 | 0 |
-| With incident memory | 6/6 | 6/6 | 6/6 | 0 | 0 |
+The UI is designed to make the memory effect visible:
 
-All three additional challenges—unknown error, missing error, and conflicting history—returned **insufficient evidence** and executed nothing.
+1. **Reset demo** starts with no session incidents, uploads, or evaluation score.
+2. **Upload evidence** from a file or one of four demo bundles. Valid records appear in the incident queue.
+3. **Open an incident** to inspect the cited history, avoided failed fix, confidence, and policy decision.
+4. **Run the workflow.** Approval-gated actions appear in Approvals and the notification center.
+5. **Verify the outcome.** Only a completed workflow advances the learning graph and evaluation score.
 
-These are small synthetic fixtures that resemble the stored incident families. They demonstrate the workflow and safety gates; they do not establish production accuracy or recovery-time savings. Four memory-backed cases paused for approval, while two low-risk cases completed simulated recovery.
+The Memory Explorer shows the evidence accumulated in the current session. Uploaded files remain visible while the API is running and can be deleted individually.
 
-## Example
+## Demo walkthrough
 
-A transaction fails with an invalid PIN state. Similar incidents show this order:
+For a short judge demo:
 
-| Step | Outcome |
-| --- | --- |
-| Retry transaction immediately | Failed |
-| Reset the stale PIN state | Succeeded |
-| Retry after remediation | Succeeded |
+1. Open **Overview** and select **Reset demo**.
+2. Select **Load evidence**, then load the **Starter incidents** bundle.
+3. Open a low-risk incident to show evidence retrieval and automatic simulated remediation.
+4. Open a critical incident to show the human approval gate and bound reviewer decision.
+5. Complete both workflows, then open **Evaluation** to show the stepwise improvement graph.
+6. Open **Memory Explorer** to show the newly stored outcomes and failed-remediation evidence.
 
-The investigator recommends `reset_customer_pin`, cites the supporting incidents or outcomes, and the low-risk demo policy permits simulated execution. It then retries the transaction, verifies both service health and transaction recovery, and stores the observed sequence for later incidents.
+> All incidents, action tools, service checks, and recovery outcomes in this repository are synthetic or simulated.
 
-## Run it
+## Current prototype
 
-Requirements: Python 3.10+, Ollama, and the local `qwen3.5:9b` model. No paid API or Docker is required.
+- **Web platform:** React, TypeScript, Vite, React Query, and a typed FastAPI client.
+- **API:** incident queue, investigations, workflow execution, approvals, evaluation, reset, upload, and deletion endpoints.
+- **Memory:** Hindsight SDK adapter, durable SQLite alternative, and deterministic in-memory fixtures.
+- **Ingestion:** validated JSON, CSV, Markdown, logs, and text PDFs with bounded failed-remediation chunks.
+- **Reasoning:** deterministic baseline plus guarded Ollama synthesis using `qwen3.5:9b`.
+- **Workflow safety:** durable approval state, audit events, execution checkpoints, and at-most-once connector receipts.
+- **Dataset:** 18 historical incidents, 54 ordered remediation outcomes, and 6 held-out cases across six failure families.
+- **Validation:** 104 Python tests and 8 frontend tests at this checkpoint.
+
+## Severity and action risk
+
+These are separate decisions:
+
+| Dimension | Values | Purpose |
+| --- | --- | --- |
+| Incident severity | Low, medium, high, critical | Sets urgency and presentation. |
+| Action risk | Low, medium, high | Controls authorization. Low may auto-execute; medium and high require approval. |
+
+A critical incident can still have a known low-risk remediation. A medium-severity incident can require approval if its proposed action is risky.
+
+## Quick start
+
+### Requirements
+
+- Python 3.10+
+- Node.js 20+ with npm
+- Ollama with `qwen3.5:9b` for local model reasoning
+- A running Hindsight service for the primary memory integration
+
+The rules engine and SQLite backend remain available when Ollama or Hindsight is unavailable.
+
+### 1. Install the backend
 
 ```powershell
 python -m venv .venv
 .venv\Scripts\python.exe -m pip install -r requirements.txt
-ollama pull qwen3.5:9b
 Copy-Item .env.example .env
 ```
 
-Set `MEMORY_BACKEND=sqlite` and `LLM_PROVIDER=ollama` in `.env`, then run:
+For a local Docker-free run, keep these values in `.env`:
+
+```dotenv
+MEMORY_BACKEND=sqlite
+LLM_PROVIDER=ollama
+LLM_MODEL=qwen3.5:9b
+```
+
+For Hindsight, follow [the Hindsight setup guide](docs/hindsight-setup.md), then set `MEMORY_BACKEND=hindsight`.
+
+### 2. Start Ollama
+
+```powershell
+ollama pull qwen3.5:9b
+ollama serve
+```
+
+If `ollama serve` says port `11434` is already in use, Ollama is already running. Verify it from the project root:
 
 ```powershell
 .venv\Scripts\python.exe -m llm.check --generate
-.venv\Scripts\python.exe main.py
 ```
 
-Useful commands:
+### 3. Start the API
+
+Run this from the project root:
+
+```powershell
+.venv\Scripts\python.exe -m uvicorn api.app:create_app --factory --reload --port 8000
+```
+
+API documentation: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
+
+### 4. Start the dashboard
+
+In a second terminal:
+
+```powershell
+Set-Location frontend
+Copy-Item .env.example .env -ErrorAction SilentlyContinue
+npm install
+npm run dev
+```
+
+Dashboard: [http://127.0.0.1:5173](http://127.0.0.1:5173)
+
+### Docker option
+
+```powershell
+docker compose up --build
+```
+
+Docker is optional for local development. The compose configuration preserves runtime databases through mounted storage and is ready for the same environment variables.
+
+## CLI and evaluation
 
 ```powershell
 # Fast offline rules demo
 .venv\Scripts\python.exe main.py --engine rules --memory mock
 
-# Investigate without executing
+# Read-only investigation
 .venv\Scripts\python.exe main.py investigate --input data/examples/incident.json
 
-# Review a high-risk simulated action
+# Approval-gated workflow
 .venv\Scripts\python.exe main.py run --input data/examples/high-risk-scenario.json --memory mock --interactive
 
-# Reproduce the local evaluation
+# Reproduce the local-model evaluation
 .venv\Scripts\python.exe -m evaluation.evaluate_memory --engine ollama --output reports/local-ollama.json
 
-# Verify dataset balance, split integrity, and exact fixture hashes
+# Audit dataset balance, split integrity, and fixture hashes
 .venv\Scripts\python.exe -m evaluation.dataset_audit --output reports/dataset-audit.json
-
-# Run all tests
-.venv\Scripts\python.exe -m unittest discover -s tests -v
-
-# Start the API for the web platform
-.venv\Scripts\python.exe -m uvicorn api.app:create_app --factory --reload --port 8000
-
-# In a second terminal, start the live frontend
-Copy-Item frontend\.env.example frontend\.env
-Set-Location frontend
-npm install
-npm run dev
-
-# Upload existing incident history after starting the API
-curl.exe -X POST http://127.0.0.1:8000/api/memory/uploads -F "file=@data/remediation_history.json;type=application/json"
 ```
 
-The dashboard keeps a session upload list, supports deleting individual files, and offers four demo bundles including embedded operational logs. Uploading evidence enables the incident queue; the learning meter and evaluation graph advance only after workflows complete and approval-gated actions are reviewed.
+### Measured synthetic result
 
-All actions, service checks, incidents, and outcomes in this repository are simulated or synthetic.
+| Evaluation | Raw action accuracy | Accepted accuracy | Accepted coverage | Failed actions repeated |
+| --- | ---: | ---: | ---: | ---: |
+| Without incident memory | 1/6 | 0/6 | 0/6 | 0 |
+| With incident memory | 6/6 | 6/6 | 6/6 | 0 |
+
+Unknown errors, missing errors, and conflicting history all returned **insufficient evidence** and executed nothing. These small synthetic fixtures demonstrate workflow behavior and safety gates; they do not establish production accuracy or recovery-time savings.
+
+## Tests
+
+```powershell
+# Backend
+.venv\Scripts\python.exe -m unittest discover -s tests -v
+
+# Frontend
+Set-Location frontend
+npm test
+npm run lint
+npm run typecheck
+npm run build
+```
+
+## Repository map
+
+```text
+agents/       investigation, remediation, reprocessing, verification
+api/          FastAPI routes, runtime wiring, request/response models
+memory/       Hindsight, SQLite, retrieval, and memory writing
+services/     workflow orchestration, ingestion, approvals, persistence
+tools/        policy, simulation, connectors, and action tools
+schemas/      validated incident, proposal, workflow, and outcome models
+evaluation/   memory comparison, metrics, and dataset audit
+frontend/     live operations dashboard
+data/         synthetic history, held-out cases, and examples
+docs/         setup, architecture, implementation, and phase notes
+tests/        backend integration and safety tests
+```
 
 ## Documentation
 
 - [Getting started](docs/getting-started.md)
 - [Architecture and trust boundaries](docs/architecture.md)
-- [Local model and GPU setup](docs/local-model.md)
-- [Measured evaluation](docs/phase-6-evaluation.md)
-- [HTTP API for the web platform](docs/api.md)
-- [File ingestion and failed-remediation memory](docs/phase-7-ingestion.md)
-- [Workflow persistence and Docker storage](docs/phase-8-workflow-persistence.md)
-- [Sandbox connectors and idempotency](docs/phase-9-connectors.md)
-- [Checkpoint hardening](docs/phase-10-checkpoint.md)
+- [HTTP API](docs/api.md)
 - [Implementation reference](docs/implementation.md)
-- [Optional Hindsight setup](docs/hindsight-setup.md)
+- [Local model and GPU setup](docs/local-model.md)
+- [Hindsight setup](docs/hindsight-setup.md)
+- [Ingestion and failed-remediation memory](docs/phase-7-ingestion.md)
+- [Workflow persistence](docs/phase-8-workflow-persistence.md)
+- [Sandbox connectors and idempotency](docs/phase-9-connectors.md)
+- [Measured evaluation](docs/phase-6-evaluation.md)
 - [Build phases](docs/README.md)
+
+## Scope
+
+This is a hackathon prototype. Production deployment would require organization-specific action policies, authenticated role management, secrets handling, production connectors, observability, and validation against real incident data.

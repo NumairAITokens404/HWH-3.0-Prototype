@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="430" viewBox="0 0 1600 430" role="img" aria-labelledby="title desc">
+  <title id="title">Live learning demonstration</title><desc id="desc">A five-step loop from empty session through evidence upload, incident resolution, verified outcome, and stronger future evidence.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#071426"/><stop offset=".5" stop-color="#112546"/><stop offset="1" stop-color="#071426"/></linearGradient>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0 10 5 0 10z" fill="#60a5fa"/></marker>
+    <style>.t{font:700 31px Inter,Segoe UI,sans-serif;fill:#f8fafc}.s{font:400 17px Inter,Segoe UI,sans-serif;fill:#b8c8db}.n{font:800 24px Inter,Segoe UI,sans-serif;fill:#081426}.h{font:700 18px Inter,Segoe UI,sans-serif;fill:#f8fafc}.p{font:400 14px Inter,Segoe UI,sans-serif;fill:#b8c8db}.l{stroke:#60a5fa;stroke-width:4;fill:none;marker-end:url(#a)}</style>
+  </defs>
+  <rect width="1600" height="430" rx="28" fill="url(#bg)"/>
+  <text x="70" y="65" class="t">Watch the system learn during the demo</text><text x="70" y="98" class="s">Metrics move only after evidence is available and a workflow produces a verified outcome.</text>
+  <path d="M270 237 H375 M570 237 H675 M870 237 H975 M1170 237 H1275" class="l"/>
+  <g>
+    <circle cx="170" cy="220" r="76" fill="#172d4b" stroke="#64748b" stroke-width="3"/><circle cx="170" cy="180" r="22" fill="#94a3b8"/><text x="170" y="188" text-anchor="middle" class="n">1</text><text x="170" y="230" text-anchor="middle" class="h">Reset</text><text x="170" y="257" text-anchor="middle" class="p">empty session</text>
+    <circle cx="470" cy="220" r="76" fill="#172d4b" stroke="#a78bfa" stroke-width="3"/><circle cx="470" cy="180" r="22" fill="#a78bfa"/><text x="470" y="188" text-anchor="middle" class="n">2</text><text x="470" y="230" text-anchor="middle" class="h">Upload</text><text x="470" y="257" text-anchor="middle" class="p">seed evidence</text>
+    <circle cx="770" cy="220" r="76" fill="#172d4b" stroke="#38bdf8" stroke-width="3"/><circle cx="770" cy="180" r="22" fill="#38bdf8"/><text x="770" y="188" text-anchor="middle" class="n">3</text><text x="770" y="230" text-anchor="middle" class="h">Investigate</text><text x="770" y="257" text-anchor="middle" class="p">cite past outcomes</text>
+    <circle cx="1070" cy="220" r="76" fill="#172d4b" stroke="#fbbf24" stroke-width="3"/><circle cx="1070" cy="180" r="22" fill="#fbbf24"/><text x="1070" y="188" text-anchor="middle" class="n">4</text><text x="1070" y="230" text-anchor="middle" class="h">Act + verify</text><text x="1070" y="257" text-anchor="middle" class="p">approve if required</text>
+    <circle cx="1370" cy="220" r="76" fill="#173c42" stroke="#34d399" stroke-width="4"/><circle cx="1370" cy="180" r="22" fill="#34d399"/><text x="1370" y="188" text-anchor="middle" class="n">5</text><text x="1370" y="230" text-anchor="middle" class="h">Learn</text><text x="1370" y="257" text-anchor="middle" class="p">store observed result</text>
+  </g>
+  <path d="M1370 306 C1370 385 470 385 470 306" fill="none" stroke="#34d399" stroke-width="3" stroke-dasharray="9 8" marker-end="url(#a)"/>
+  <text x="920" y="386" text-anchor="middle" class="p">The next incident retrieves richer evidence</text>
+</svg>

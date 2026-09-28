@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" role="img" aria-labelledby="title desc">
+  <title id="title">Adaptive Incident Intelligence system architecture</title>
+  <desc id="desc">Files and live incidents enter an evidence-backed investigation workflow. Hindsight memory informs a guarded recommendation. Policy selects automatic simulation or human approval, followed by reprocessing, verification, and a memory update.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#071426"/><stop offset="1" stop-color="#102849"/></linearGradient>
+    <linearGradient id="blue" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#2563eb"/><stop offset="1" stop-color="#38bdf8"/></linearGradient>
+    <linearGradient id="violet" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#7c3aed"/><stop offset="1" stop-color="#a78bfa"/></linearGradient>
+    <linearGradient id="green" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#059669"/><stop offset="1" stop-color="#34d399"/></linearGradient>
+    <linearGradient id="amber" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#d97706"/><stop offset="1" stop-color="#fbbf24"/></linearGradient>
+    <filter id="shadow"><feDropShadow dx="0" dy="8" stdDeviation="10" flood-opacity=".28"/></filter>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#7dd3fc"/></marker>
+    <style>
+      .title{font:700 34px Inter,Segoe UI,sans-serif;fill:#f8fafc}.sub{font:400 18px Inter,Segoe UI,sans-serif;fill:#a9bdd5}.h{font:700 20px Inter,Segoe UI,sans-serif;fill:white}.p{font:400 15px Inter,Segoe UI,sans-serif;fill:#d7e4f2}.small{font:600 13px Inter,Segoe UI,sans-serif;fill:#a9bdd5;letter-spacing:1.2px}.line{fill:none;stroke:#7dd3fc;stroke-width:4;marker-end:url(#arrow)}.dash{fill:none;stroke:#7dd3fc;stroke-width:3;stroke-dasharray:8 8;marker-end:url(#arrow)}
+    </style>
+  </defs>
+  <rect width="1600" height="900" rx="28" fill="url(#bg)"/>
+  <circle cx="1410" cy="80" r="240" fill="#2563eb" opacity=".08"/><circle cx="180" cy="820" r="280" fill="#7c3aed" opacity=".08"/>
+  <text x="80" y="72" class="title">Evidence-backed incident response</text>
+  <text x="80" y="105" class="sub">The model explains. Deterministic policy authorizes. Independent checks prove recovery.</text>
+
+  <g filter="url(#shadow)">
+    <rect x="70" y="170" width="300" height="155" rx="22" fill="#132d4d" stroke="#38bdf8" stroke-width="2"/>
+    <text x="100" y="205" class="small">LIVE SIGNALS</text><text x="100" y="244" class="h">Incident / failure</text>
+    <text x="100" y="275" class="p">alerts • logs • tickets</text><text x="100" y="300" class="p">service and operation context</text>
+
+    <rect x="70" y="530" width="300" height="200" rx="22" fill="#241b4b" stroke="#a78bfa" stroke-width="2"/>
+    <text x="100" y="565" class="small">HISTORICAL EVIDENCE</text><text x="100" y="604" class="h">File ingestion</text>
+    <text x="100" y="635" class="p">JSON • CSV • Markdown</text><text x="100" y="660" class="p">logs • text PDFs</text>
+    <rect x="100" y="684" width="230" height="30" rx="15" fill="#7c3aed" opacity=".55"/><text x="215" y="705" text-anchor="middle" class="p">validate → chunk → embed</text>
+
+    <rect x="485" y="145" width="420" height="190" rx="26" fill="url(#blue)"/>
+    <text x="525" y="188" class="small" fill="#e0f2fe">AGENT 1</text><text x="525" y="235" class="h" font-size="26">Incident Investigator</text>
+    <text x="525" y="270" class="p">retrieves evidence, forms a hypothesis,</text><text x="525" y="297" class="p">and proposes one supported action</text>
+
+    <rect x="485" y="510" width="420" height="220" rx="26" fill="url(#violet)"/>
+    <text x="525" y="550" class="small" fill="#f3e8ff">HINDSIGHT MEMORY</text><text x="525" y="596" class="h" font-size="26">Incident + outcome memory</text>
+    <text x="525" y="632" class="p">similar incidents • ordered attempts</text><text x="525" y="659" class="p">failed fixes • successful fixes • outcomes</text>
+    <text x="525" y="700" class="p">Native retrieval, chunking, and embeddings</text>
+
+    <rect x="1020" y="145" width="500" height="190" rx="26" fill="#132d4d" stroke="#38bdf8" stroke-width="2"/>
+    <text x="1060" y="185" class="small">GUARDRAILS</text><text x="1060" y="229" class="h">Python validation + action policy</text>
+    <text x="1060" y="265" class="p">schema • supported action • real citations</text><text x="1060" y="292" class="p">risk classification • approval binding</text>
+
+    <rect x="1015" y="430" width="230" height="130" rx="22" fill="url(#green)"/>
+    <text x="1050" y="470" class="small" fill="#ecfdf5">LOW RISK</text><text x="1050" y="510" class="h">Auto execute</text><text x="1050" y="537" class="p">simulation by default</text>
+
+    <rect x="1290" y="430" width="230" height="130" rx="22" fill="url(#amber)"/>
+    <text x="1325" y="470" class="small" fill="#fffbeb">MEDIUM / HIGH</text><text x="1325" y="510" class="h">Human approval</text><text x="1325" y="537" class="p">reviewer-bound decision</text>
+
+    <rect x="1015" y="650" width="505" height="145" rx="24" fill="#132d4d" stroke="#34d399" stroke-width="2"/>
+    <text x="1055" y="690" class="small">RECOVERY PROOF</text><text x="1055" y="731" class="h">Reprocess → independently verify</text>
+    <text x="1055" y="765" class="p">store success, failure, or partial recovery</text>
+  </g>
+
+  <path d="M370 248 H475" class="line"/><path d="M695 335 V500" class="line"/><path d="M370 630 H475" class="line"/>
+  <path d="M905 220 H1010" class="line"/><path d="M1270 335 V390 H1130 V420" class="line"/><path d="M1270 335 V390 H1405 V420" class="line"/>
+  <path d="M1130 560 V640" class="line"/><path d="M1405 560 V640" class="line"/>
+  <path d="M1015 735 H930 V760 H695 V740" class="dash"/>
+  <text x="752" y="787" class="small">OBSERVED OUTCOME RETURNS TO MEMORY</text>
+</svg>
