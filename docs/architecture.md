@@ -2,6 +2,8 @@
 
 [Documentation index](README.md) | [Project overview](../README.md)
 
+![Adaptive Incident Intelligence system architecture](assets/system-architecture.svg)
+
 ## Target flow
 
 1. Historical incident files are validated and retained as complete records. Failed and partial outcomes are also indexed as traceable remediation chunks; Hindsight performs native chunking and embedding.
@@ -22,13 +24,13 @@ Human approval authorizes a remediation; it does not itself fix the incident. Ap
 | --- | --- | --- |
 | Incident Investigator | `agents/incident_investigator.py`, `agents/llm_investigator.py` | Deterministic baseline plus guarded Ollama synthesis |
 | Historical similarity and remediation analysis | `agents/remediation_memory.py`, `memory/memory_retriever.py` | Implemented for mock, SQLite, and Hindsight protocol clients |
-| Incident memory | `memory/hindsight_client.py`, `memory/sqlite_client.py`, `memory/hindsight_adapter.py` | Mock and SQLite working; real SDK adapter awaiting a live service |
+| Incident memory | `memory/hindsight_client.py`, `memory/sqlite_client.py`, `memory/hindsight_adapter.py` | Mock, SQLite, and official Hindsight SDK paths implemented |
 | Action Decision Layer | `tools/risk_classifier.py` | Implemented simulation allowlist and bound approvals |
 | Auto Remediation Agent | `agents/auto_remediation.py`, remediation service/tools | Implemented for local simulation |
 | Reprocessing Agent | `agents/reprocessing.py`, `tools/reprocessing_tools.py` | Implemented with remediation prerequisite |
 | Outcome Verification | `agents/outcome_verifier.py`, `services/verification_service.py` | Independent simulated health and operation checks |
 | Memory update | All memory clients through the shared protocol | Verified simulated outcomes written by `IncidentWorkflow` |
-| Web API | `api/app.py`, `api/runtime.py` | Typed investigation, named demo workflow, and approval endpoints |
+| Web API | `api/app.py`, `api/runtime.py` | Typed incidents, investigation, workflow, approval, upload, reset, and evaluation endpoints |
 | File ingestion and failed-remediation index | `services/ingestion_service.py`, `schemas/ingestion.py` | JSON validation, bounded chunks, local persistence/search, and Hindsight retention |
 
 The Remediation Memory module supports the investigator. It is distinct from the Auto Remediation Agent, which executes approved actions.
@@ -51,6 +53,6 @@ The hackathon's action tools are simulated. PIN reset is labeled low risk only w
 
 `Outcome.tool_result` retains tool acknowledgements while `Outcome.result` retains the observed step outcome. `IncidentMemory.final_outcome` records overall recovery. Thus a failed retry can remain FAILED in action history while overall recovery is PARTIAL because the service itself recovered. Root causes written from investigations remain historical hypotheses, not independently established causes.
 
-Approval identities are trusted local inputs. The simulator is a test fixture, not a security boundary or production connector. Workflow state and duplicate protection are in-process, synchronous, and not durable across restarts.
+The optional bearer-token configuration derives reviewer identity on the server. Without it, the application remains a local demo. The simulator is a test fixture, not a production connector. Workflow state, approval records, audit events, execution checkpoints, and connector receipts persist in SQLite.
 
 The HTTP layer keeps simulator truth on the server. A browser selects a named demo scenario and never supplies the required remediation action, expected result, or health observation.
