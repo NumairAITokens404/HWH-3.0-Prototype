@@ -200,8 +200,18 @@ class ApiRuntime:
         try:
             # Hindsight retention can invoke local embeddings and Ollama. Keep it
             # outside the runtime lock so status and health endpoints stay responsive.
+            def record_stored(record, completed: int, total: int) -> None:
+                with self._lock:
+                    upload = self._ui_uploads.get(upload_id)
+                    if upload is None:
+                        return
+                    self._ui_source_names[record.incident.incident_id] = filename
+                    upload.update(stage="storing", storedIncidents=completed,
+                                  progress=45 + round(40 * completed / total))
+
             result = ingest_incident_history(content, filename, self.ui_memory,
-                                             self.settings.memory_backend)
+                                             self.settings.memory_backend,
+                                             on_record_stored=record_stored)
             with self._lock:
                 upload = self._ui_uploads.get(upload_id)
                 if upload is None:

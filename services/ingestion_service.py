@@ -4,6 +4,7 @@ from io import BytesIO, StringIO
 import csv
 import json
 import re
+from collections.abc import Callable
 from pydantic import ValidationError
 
 from memory.hindsight_client import HindsightClient
@@ -28,7 +29,13 @@ def _records(payload) -> list[IncidentMemory]:
         raise IngestionValidationError("An upload may contain at most 500 incident records")
     try:
         records = [IncidentMemory.model_validate(item) for item in payload]
-    except (ValidationError, TypeError, ValueError) as exc:
+    except ValidationError as exc:
+        first = exc.errors(include_url=False)[0]
+        location = ".".join(str(part) for part in first.get("loc", ())) or "record"
+        raise IngestionValidationError(
+            f"Invalid incident history at {location}: {first.get('msg', 'schema validation failed')}"
+        ) from exc
+    except (TypeError, ValueError) as exc:
         raise IngestionValidationError("Upload does not match the IncidentMemory schema") from exc
     ids = [item.incident.incident_id for item in records]
     if len(ids) != len(set(ids)):
@@ -195,7 +202,9 @@ def failed_remediation_chunks(memory: IncidentMemory, source_filename: str) -> l
 
 
 def ingest_incident_history(content: bytes, filename: str, client: HindsightClient,
-                            memory_backend: str) -> IngestionResult:
+                            memory_backend: str,
+                            on_record_stored: Callable[[IncidentMemory, int, int], None] | None = None
+                            ) -> IngestionResult:
     source_filename = filename.replace("\\", "/").rsplit("/", 1)[-1].strip()
     if not source_filename:
         raise IngestionValidationError("A source filename is required")
@@ -205,8 +214,10 @@ def ingest_incident_history(content: bytes, filename: str, client: HindsightClie
         if existing is not None and existing != record:
             raise ValueError(f"Incident {record.incident.incident_id} already exists with different content")
     chunks = [chunk for record in records for chunk in failed_remediation_chunks(record, source_filename)]
-    for record in records:
+    for index, record in enumerate(records, start=1):
         client.store_incident_memory(record)
+        if on_record_stored is not None:
+            on_record_stored(record, index, len(records))
     client.store_failed_remediation_chunks(chunks)
     return IngestionResult(
         source_filename=source_filename, memory_backend=memory_backend,
