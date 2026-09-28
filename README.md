@@ -47,7 +47,7 @@ The model proposes and explains. Python validates citations, classifies action r
 
 ## Architecture
 
-![Adaptive Incident Intelligence system architecture](docs/assets/system-architecture.svg)
+![Adaptive Incident Intelligence system architecture](docs/assets/system-architecture-v2.png)
 
 ### End-to-end request path
 
