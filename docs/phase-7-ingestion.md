@@ -5,7 +5,7 @@
 ## Implemented flow
 
 ```text
-JSON incident-history file
+Incident-history file (JSON, CSV, Markdown, text/log, or PDF)
         |
         v
 Size, encoding, and schema validation
@@ -22,7 +22,16 @@ Complete IncidentMemory records retained
 Hindsight native retention: chunking, fact extraction, and embeddings
 ```
 
-The application accepts one `IncidentMemory`, an array of records, or `{ "records": [...] }`. Uploads are limited to 500 records and `API_UPLOAD_MAX_BYTES` (5 MiB by default). It rejects invalid UTF-8, malformed JSON, duplicate incident IDs, unknown fields, and conflicting existing records before writing new records.
+JSON accepts one `IncidentMemory`, an array of records, or `{ "records": [...] }`. Uploads are limited to 500 records and `API_UPLOAD_MAX_BYTES` (5 MiB by default). Every format is normalized into the same strict `IncidentMemory` schema. Duplicate incident IDs, unknown fields, malformed data, and conflicting existing records are rejected before writing new records.
+
+## Format contracts
+
+- JSON uses the canonical schema directly.
+- CSV uses one incident per row. Required columns are `incident_id`, `service`, `severity`, `environment`, `symptoms`, and `outcomes`. Separate symptoms with `|`; `outcomes` is a JSON array. `recommendation` is an optional JSON object. Other incident and resolution fields use matching schema names.
+- Markdown and UTF-8 `.txt`/`.log` files must contain JSON inside a fenced `incident-memory` or `json` code block. Marker pairs `AII_INCIDENT_MEMORY_BEGIN` and `AII_INCIDENT_MEMORY_END` are also accepted.
+- PDF files follow the same embedded-block contract after text extraction. PDFs must contain selectable text, cannot be encrypted, and are limited to 100 pages. Scanned-image OCR is outside this phase.
+
+Free-form prose is deliberately rejected. The importer does not ask an LLM to invent missing identifiers, actions, outcomes, or verification states.
 
 Each failed or partial outcome becomes a structure-aware chunk containing the incident, service, environment, symptoms, root-cause hypothesis, attempted action, observed result, verification state, and lesson. Large entries are split into bounded overlapping chunks. Deterministic chunk IDs make retrying the same upload idempotent.
 
@@ -38,6 +47,6 @@ With `mock` or `sqlite`, the same chunks are stored and searched using the trans
 
 - `POST /api/memory/uploads` accepts a multipart field named `file` and returns counts, incident IDs, completed stages, and embedding status.
 - `GET /api/memory/failed-remediations?q=...&limit=10` searches failed and partial remediation evidence.
-- Only `.json` uploads are accepted in this phase. PDF, Markdown, CSV, and free-form log extraction remain future work.
+- Supported extensions are `.json`, `.csv`, `.md`, `.txt`, `.log`, and `.pdf`.
 
 The live Hindsight path is adapter-tested offline. End-to-end embeddings and semantic recall still require a configured Hindsight service.

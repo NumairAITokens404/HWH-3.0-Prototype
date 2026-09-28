@@ -25,7 +25,8 @@ class CapabilityResponse(Schema):
     persistent_memory: bool
     live_hindsight: bool
     file_ingestion: Literal[True] = True
-    ingestion_formats: list[Literal["json"]] = Field(default_factory=lambda: ["json"])
+    ingestion_formats: list[Literal["json", "csv", "md", "txt", "log", "pdf"]] = Field(
+        default_factory=lambda: ["json", "csv", "md", "txt", "log", "pdf"])
     embedding_provider: Literal["hindsight", "none"]
     simulated_actions: Literal[True] = True
 

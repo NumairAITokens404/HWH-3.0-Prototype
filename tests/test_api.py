@@ -54,7 +54,9 @@ class ApiTests(unittest.TestCase):
 
     def test_upload_rejects_bad_type_payload_size_and_conflict(self):
         self.assertEqual(self.client.post("/api/memory/uploads",
-                                         files={"file": ("history.txt", "{}", "text/plain")}).status_code, 415)
+                                         files={"file": ("history.exe", "{}", "application/octet-stream")}).status_code, 415)
+        self.assertEqual(self.client.post("/api/memory/uploads",
+                                         files={"file": ("history.txt", "plain text", "text/plain")}).status_code, 422)
         self.assertEqual(self.client.post("/api/memory/uploads",
                                          files={"file": ("history.json", "bad", "application/json")}).status_code, 422)
         small_settings = Settings(data_dir=ROOT / "data", api_upload_max_bytes=1024)

@@ -1,6 +1,9 @@
 """Validate uploaded incident history and retain structured failure evidence."""
 
+from io import BytesIO, StringIO
+import csv
 import json
+import re
 from pydantic import ValidationError
 
 from memory.hindsight_client import HindsightClient
@@ -33,7 +36,17 @@ def _records(payload) -> list[IncidentMemory]:
     return records
 
 
-def parse_incident_history(content: bytes) -> list[IncidentMemory]:
+SUPPORTED_EXTENSIONS = {".json", ".csv", ".md", ".txt", ".log", ".pdf"}
+
+
+def _decode_text(content: bytes) -> str:
+    try:
+        return content.decode("utf-8-sig")
+    except UnicodeDecodeError as exc:
+        raise IngestionValidationError("Text uploads must use UTF-8 encoding") from exc
+
+
+def _parse_json(content: bytes) -> list[IncidentMemory]:
     if not content:
         raise IngestionValidationError("Uploaded file is empty")
     try:
@@ -41,6 +54,94 @@ def parse_incident_history(content: bytes) -> list[IncidentMemory]:
     except (UnicodeDecodeError, json.JSONDecodeError) as exc:
         raise IngestionValidationError("Upload must be valid UTF-8 JSON") from exc
     return _records(payload)
+
+
+def _optional(value: str | None):
+    value = (value or "").strip()
+    return value or None
+
+
+def _parse_csv(content: bytes) -> list[IncidentMemory]:
+    text = _decode_text(content)
+    reader = csv.DictReader(StringIO(text))
+    required = {"incident_id", "service", "severity", "environment", "symptoms", "outcomes"}
+    allowed = required | {"error_code", "error_message", "customer_id", "transaction_id", "job_id",
+                          "recent_change", "root_cause", "recommendation", "final_resolution", "final_outcome"}
+    fields = set(reader.fieldnames or [])
+    if not required <= fields:
+        raise IngestionValidationError(f"CSV is missing required columns: {sorted(required - fields)}")
+    if fields - allowed:
+        raise IngestionValidationError(f"CSV contains unsupported columns: {sorted(fields - allowed)}")
+    payload = []
+    try:
+        for row in reader:
+            outcomes = json.loads(row["outcomes"] or "[]")
+            recommendation = json.loads(row["recommendation"]) if _optional(row.get("recommendation")) else None
+            incident = {
+                "incident_id": row["incident_id"], "service": row["service"],
+                "severity": row["severity"], "environment": row["environment"],
+                "symptoms": [item.strip() for item in row["symptoms"].split("|") if item.strip()],
+                **{key: _optional(row.get(key)) for key in
+                   ("error_code", "error_message", "customer_id", "transaction_id", "job_id", "recent_change")},
+            }
+            payload.append({"incident": incident, "root_cause": _optional(row.get("root_cause")),
+                            "recommendation": recommendation, "outcomes": outcomes,
+                            "final_resolution": _optional(row.get("final_resolution")),
+                            "final_outcome": _optional(row.get("final_outcome"))})
+    except (json.JSONDecodeError, TypeError) as exc:
+        raise IngestionValidationError("CSV recommendation and outcomes columns must contain valid JSON") from exc
+    return _records(payload)
+
+
+def _embedded_records(text: str) -> list[IncidentMemory]:
+    fenced = re.findall(r"```(?:incident-memory|json)\s*(.*?)```", text, flags=re.IGNORECASE | re.DOTALL)
+    marked = re.findall(r"AII_INCIDENT_MEMORY_BEGIN\s*(.*?)\s*AII_INCIDENT_MEMORY_END",
+                        text, flags=re.IGNORECASE | re.DOTALL)
+    blocks = fenced or marked
+    if not blocks:
+        raise IngestionValidationError(
+            "Document must contain a fenced incident-memory JSON block or AII incident-memory markers")
+    records = []
+    try:
+        for block in blocks:
+            records.extend(_records(json.loads(block)))
+    except json.JSONDecodeError as exc:
+        raise IngestionValidationError("Embedded incident-memory block is not valid JSON") from exc
+    if len(records) > 500:
+        raise IngestionValidationError("An upload may contain at most 500 incident records")
+    ids = [item.incident.incident_id for item in records]
+    if len(ids) != len(set(ids)):
+        raise IngestionValidationError("Incident IDs must be unique within an upload")
+    return records
+
+
+def _pdf_text(content: bytes) -> str:
+    try:
+        from pypdf import PdfReader
+        reader = PdfReader(BytesIO(content), strict=True)
+        if reader.is_encrypted:
+            raise IngestionValidationError("Encrypted PDFs are not supported")
+        if len(reader.pages) > 100:
+            raise IngestionValidationError("PDF uploads may contain at most 100 pages")
+        return "\n".join(page.extract_text() or "" for page in reader.pages)
+    except IngestionValidationError:
+        raise
+    except Exception as exc:
+        raise IngestionValidationError("Upload is not a readable text PDF") from exc
+
+
+def parse_incident_history(content: bytes, filename: str = "history.json") -> list[IncidentMemory]:
+    if not content:
+        raise IngestionValidationError("Uploaded file is empty")
+    suffix = "." + filename.replace("\\", "/").rsplit("/", 1)[-1].rsplit(".", 1)[-1].casefold()
+    if suffix not in SUPPORTED_EXTENSIONS:
+        raise IngestionValidationError(f"Unsupported history format: {suffix}")
+    if suffix == ".json":
+        return _parse_json(content)
+    if suffix == ".csv":
+        return _parse_csv(content)
+    text = _pdf_text(content) if suffix == ".pdf" else _decode_text(content)
+    return _embedded_records(text)
 
 
 def _split(content: str, maximum: int = 2400, overlap: int = 200) -> list[str]:
@@ -98,7 +199,7 @@ def ingest_incident_history(content: bytes, filename: str, client: HindsightClie
     source_filename = filename.replace("\\", "/").rsplit("/", 1)[-1].strip()
     if not source_filename:
         raise IngestionValidationError("A source filename is required")
-    records = parse_incident_history(content)
+    records = parse_incident_history(content, source_filename)
     for record in records:
         existing = client.get_incident_memory(record.incident.incident_id)
         if existing is not None and existing != record:

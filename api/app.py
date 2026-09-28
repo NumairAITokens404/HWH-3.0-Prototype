@@ -13,7 +13,7 @@ from schemas.incident import Incident
 from schemas.ingestion import FailedRemediationSearchResult, IngestionResult
 from schemas.investigation import InvestigationResult
 from schemas.workflow import WorkflowResult
-from services.ingestion_service import IngestionValidationError
+from services.ingestion_service import IngestionValidationError, SUPPORTED_EXTENSIONS
 
 
 def create_app(settings: Settings | None = None, runtime: ApiRuntime | None = None) -> FastAPI:
@@ -50,8 +50,9 @@ def create_app(settings: Settings | None = None, runtime: ApiRuntime | None = No
     @app.post("/api/memory/uploads", response_model=IngestionResult, status_code=201, tags=["memory"])
     async def upload_memory(file: UploadFile = File(...)):
         filename = file.filename or ""
-        if not filename.casefold().endswith(".json"):
-            raise HTTPException(status_code=415, detail="Only UTF-8 JSON incident-history files are supported")
+        suffix = "." + filename.rsplit(".", 1)[-1].casefold() if "." in filename else ""
+        if suffix not in SUPPORTED_EXTENSIONS:
+            raise HTTPException(status_code=415, detail="Supported formats: JSON, CSV, Markdown, TXT, LOG, and PDF")
         content = await file.read(settings.api_upload_max_bytes + 1)
         await file.close()
         if len(content) > settings.api_upload_max_bytes:

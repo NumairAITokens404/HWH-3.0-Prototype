@@ -52,7 +52,7 @@ The LLM proposes and explains. Python owns citation checks, action support, risk
 - **Local reasoning:** Ollama with `qwen3.5:9b`, selected for the project machine's RTX 5070 Ti 12 GB GPU. The measured run used an 8,192-token context and loaded fully on the GPU.
 - **Persistent memory without Docker:** SQLite stores incidents and outcomes across runs.
 - **Hindsight-ready:** the official SDK adapter, backend selection, and offline contract tests are implemented. A live Hindsight service remains optional.
-- **History ingestion:** JSON incident-history uploads preserve complete records and create searchable failed-remediation chunks; Hindsight handles embeddings when configured.
+- **History ingestion:** validated JSON, CSV, Markdown, logs, and text-based PDFs preserve complete records and create searchable failed-remediation chunks; Hindsight handles embeddings when configured.
 - **Durable control plane:** pending approvals and audit events persist in SQLite, including a pre-execution checkpoint that prevents automatic duplicate actions after an interrupted run.
 - **Complete simulated loop:** investigation, policy checks, human approval pause/resume, remediation, retry, independent verification, and memory feedback.
 - **Structured and guarded:** Pydantic validates every input and model proposal; malformed, truncated, unsupported, or uncited output is rejected or disclosed as fallback.
