@@ -54,7 +54,9 @@ class WorkflowTests(unittest.TestCase):
         denied = Approval(request_id=waiting.decision.request_id, approved=False, reviewer="test-reviewer")
         self.assertEqual(workflow.run(incident, denied).status, "DENIED")
         wrong = denied.model_copy(update={"request_id": "wrong", "approved": True})
-        self.assertEqual(workflow.run(incident, wrong).status, "BLOCKED")
+        self.assertEqual(workflow.run(incident, wrong).status, "DENIED")
+        later_approval = denied.model_copy(update={"approved": True})
+        self.assertEqual(workflow.run(incident, later_approval).status, "DENIED")
         self.assertEqual(world.observe(incident), (False, False))
 
     def test_policy_ignores_suggested_low_risk_for_high_risk_action(self):

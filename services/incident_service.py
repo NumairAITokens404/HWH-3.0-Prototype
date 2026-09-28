@@ -34,6 +34,7 @@ class IncidentWorkflow:
         self.llm = llm
         self._pending: dict[str, InvestigationResult] = {}
         self._completed: dict[str, tuple[WorkflowResult, IncidentMemory]] = {}
+        self._terminal: dict[str, WorkflowResult] = {}
 
     def run(self, incident: Incident, approval: Approval | None = None) -> WorkflowResult:
         self.world.validate_incident(incident)
@@ -44,6 +45,8 @@ class IncidentWorkflow:
             self.client.store_incident_memory(memory)
             result.memory_stored = True
             return result.model_copy(deep=True)
+        if key in self._terminal:
+            return self._terminal[key].model_copy(deep=True)
         if self.client.get_incident_memory(key) is not None:
             raise ValueError("Incident already exists in memory; use a new incident ID")
         if key not in self._pending:
@@ -58,6 +61,9 @@ class IncidentWorkflow:
         result.approval = approval
         if decision.status != "ALLOWED":
             result.status = decision.status
+            if decision.status == "DENIED":
+                self._terminal[key] = result.model_copy(deep=True)
+                self._pending.pop(key, None)
             return result.model_copy(deep=True)
         remediation, retry = remediate_and_retry(incident, action, self.world, approval)
         verification = verify_recovery(incident, self.world)

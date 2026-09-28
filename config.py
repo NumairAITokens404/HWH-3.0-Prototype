@@ -23,6 +23,7 @@ class Settings:
     llm_timeout: float = 120.0
     llm_context: int = 8192
     llm_max_tokens: int = 1200
+    api_cors_origins: tuple[str, ...] = ("http://localhost:5173", "http://127.0.0.1:5173")
 
     def __post_init__(self):
         if self.memory_backend not in {"mock", "sqlite", "hindsight"}:
@@ -43,6 +44,12 @@ class Settings:
             raise ValueError("LLM_MODEL and a positive finite LLM_TIMEOUT are required")
         if not 2048 <= self.llm_context <= 32768 or not 128 <= self.llm_max_tokens <= 4096:
             raise ValueError("LLM_CONTEXT must be 2048..32768; LLM_MAX_TOKENS must be 128..4096")
+        for origin in self.api_cors_origins:
+            parsed = urlparse(origin)
+            if (parsed.scheme not in {"http", "https"} or not parsed.hostname
+                    or parsed.username or parsed.password or parsed.query or parsed.fragment
+                    or parsed.path not in {"", "/"}):
+                raise ValueError("API_CORS_ORIGINS must contain HTTP(S) origins without paths")
 
     @classmethod
     def from_env(cls, env_file: Path | None = None):
@@ -53,6 +60,8 @@ class Settings:
         def path(key, default):
             candidate = Path(value(key, str(default)))
             return (root / candidate).resolve() if not candidate.is_absolute() else candidate.resolve()
+        origins = tuple(item.strip() for item in value(
+            "API_CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173").split(",") if item.strip())
         return cls(data_dir=path("INCIDENT_DATA_DIR", root / "data"),
                    memory_backend=value("MEMORY_BACKEND", "mock"),
                    hindsight_base_url=value("HINDSIGHT_BASE_URL", "http://localhost:8888").rstrip("/"),
@@ -65,4 +74,5 @@ class Settings:
                    llm_model=value("LLM_MODEL", "qwen3.5:9b"),
                    llm_timeout=float(value("LLM_TIMEOUT", "120")),
                    llm_context=int(value("LLM_CONTEXT", "8192")),
-                   llm_max_tokens=int(value("LLM_MAX_TOKENS", "1200")))
+                   llm_max_tokens=int(value("LLM_MAX_TOKENS", "1200")),
+                   api_cors_origins=origins)

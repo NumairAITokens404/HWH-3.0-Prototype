@@ -27,6 +27,7 @@ Human approval authorizes a remediation; it does not itself fix the incident. Ap
 | Reprocessing Agent | `agents/reprocessing.py`, `tools/reprocessing_tools.py` | Implemented with remediation prerequisite |
 | Outcome Verification | `agents/outcome_verifier.py`, `services/verification_service.py` | Independent simulated health and operation checks |
 | Memory update | All memory clients through the shared protocol | Verified simulated outcomes written by `IncidentWorkflow` |
+| Web API | `api/app.py`, `api/runtime.py` | Typed investigation, named demo workflow, and approval endpoints |
 
 The Remediation Memory module supports the investigator. It is distinct from the Auto Remediation Agent, which executes approved actions.
 
@@ -49,3 +50,5 @@ The hackathon's action tools are simulated. PIN reset is labeled low risk only w
 `Outcome.tool_result` retains tool acknowledgements while `Outcome.result` retains the observed step outcome. `IncidentMemory.final_outcome` records overall recovery. Thus a failed retry can remain FAILED in action history while overall recovery is PARTIAL because the service itself recovered. Root causes written from investigations remain historical hypotheses, not independently established causes.
 
 Approval identities are trusted local inputs. The simulator is a test fixture, not a security boundary or production connector. Workflow state and duplicate protection are in-process, synchronous, and not durable across restarts.
+
+The HTTP layer keeps simulator truth on the server. A browser selects a named demo scenario and never supplies the required remediation action, expected result, or health observation.

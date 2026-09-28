@@ -116,6 +116,9 @@ Useful commands:
 
 # Run all tests
 .venv\Scripts\python.exe -m unittest discover -s tests -v
+
+# Start the API for the web platform
+.venv\Scripts\python.exe -m uvicorn api.app:create_app --factory --reload --port 8000
 ```
 
 All actions, service checks, incidents, and outcomes in this repository are simulated or synthetic.
@@ -126,6 +129,7 @@ All actions, service checks, incidents, and outcomes in this repository are simu
 - [Architecture and trust boundaries](docs/architecture.md)
 - [Local model and GPU setup](docs/local-model.md)
 - [Measured evaluation](docs/phase-6-evaluation.md)
+- [HTTP API for the web platform](docs/api.md)
 - [Implementation reference](docs/implementation.md)
 - [Optional Hindsight setup](docs/hindsight-setup.md)
 - [Build phases](docs/README.md)

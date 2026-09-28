@@ -41,6 +41,8 @@
 | `evaluation/evaluate_memory.py`, `evaluation/metrics.py` | Isolated with/without-memory comparison, safety challenges, and metrics. |
 | `config.py`, `.env.example` | Automatic `.env` loading and validated memory/model configuration. |
 | `cli.py`, `main.py` | Demo, investigate, scenario run, JSON output, and interactive approval. |
+| `api/app.py`, `api/models.py`, `api/runtime.py` | FastAPI contract, provider capability reporting, named demo scenarios, and bounded pending approvals. |
+| `tests/test_api.py` | HTTP validation, OpenAPI, CORS-facing contracts, approval lifecycle, and capacity behavior. |
 | `requirements.txt`, `.gitignore`, `__init__.py` files | Dependencies, ignored artifacts, and package structure. |
 | `README.md`, `docs/` | Project overview and phase/technical documentation. |
 

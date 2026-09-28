@@ -1,0 +1,69 @@
+"""FastAPI application factory for UI and demo integrations."""
+
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+
+from api.models import (ApprovalSubmission, CapabilityResponse, DemoScenarioInfo,
+                        DemoWorkflowRequest, HealthResponse)
+from api.runtime import ApiRuntime, SCENARIOS
+from config import Settings
+from memory.hindsight_adapter import HindsightUnavailable
+from schemas.incident import Incident
+from schemas.investigation import InvestigationResult
+from schemas.workflow import WorkflowResult
+
+
+def create_app(settings: Settings | None = None, runtime: ApiRuntime | None = None) -> FastAPI:
+    settings = settings or Settings.from_env()
+    runtime = runtime or ApiRuntime(settings)
+    app = FastAPI(title="Adaptive Incident Intelligence API", version="0.1.0",
+                  description="Typed API for investigation and explicitly simulated recovery workflows.")
+    app.state.runtime = runtime
+    app.add_middleware(CORSMiddleware, allow_origins=list(settings.api_cors_origins),
+                       allow_credentials=False, allow_methods=["GET", "POST"], allow_headers=["Content-Type"])
+
+    def domain_error(exc: Exception):
+        if isinstance(exc, KeyError):
+            raise HTTPException(status_code=404, detail=str(exc.args[0])) from exc
+        if isinstance(exc, HindsightUnavailable):
+            raise HTTPException(status_code=503, detail=str(exc)) from exc
+        if isinstance(exc, RuntimeError):
+            raise HTTPException(status_code=503, detail=str(exc)) from exc
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    @app.get("/api/health", response_model=HealthResponse, tags=["system"])
+    def health():
+        return HealthResponse(memory_backend=settings.memory_backend, llm_provider=settings.llm_provider,
+                              model=settings.llm_model if settings.llm_provider == "ollama" else None)
+
+    @app.get("/api/capabilities", response_model=CapabilityResponse, tags=["system"])
+    def capabilities():
+        return CapabilityResponse(persistent_memory=settings.memory_backend in {"sqlite", "hindsight"},
+                                  live_hindsight=settings.memory_backend == "hindsight")
+
+    @app.get("/api/demo/scenarios", response_model=list[DemoScenarioInfo], tags=["demo"])
+    def demo_scenarios():
+        return list(SCENARIOS)
+
+    @app.post("/api/incidents/investigate", response_model=InvestigationResult, tags=["incidents"])
+    def investigate(incident: Incident):
+        try:
+            return runtime.investigate(incident)
+        except (ValueError, KeyError, RuntimeError, HindsightUnavailable) as exc:
+            domain_error(exc)
+
+    @app.post("/api/demo/workflows", response_model=WorkflowResult, tags=["demo"])
+    def start_demo(request: DemoWorkflowRequest):
+        try:
+            return runtime.start_demo(request.scenario)
+        except (ValueError, KeyError, RuntimeError, HindsightUnavailable) as exc:
+            domain_error(exc)
+
+    @app.post("/api/demo/workflows/{incident_id}/approval", response_model=WorkflowResult, tags=["demo"])
+    def approve_demo(incident_id: str, submission: ApprovalSubmission):
+        try:
+            return runtime.submit_approval(incident_id, submission)
+        except (ValueError, KeyError, RuntimeError, HindsightUnavailable) as exc:
+            domain_error(exc)
+
+    return app
