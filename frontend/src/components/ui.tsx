@@ -15,7 +15,7 @@ export function StatusBadge({ value, label }: { value: string; label?: string })
 }
 
 export function PageHeader({ eyebrow, title, description, action }: { eyebrow: string; title: string; description: string; action?: React.ReactNode }) {
-  return <header className="hero-header mb-6 flex flex-col justify-between gap-6 md:flex-row md:items-end"><div><p className="eyebrow mb-1.5">{eyebrow}</p><h1 className="hero-title text-4xl font-bold tracking-[-0.055em] text-ink md:text-[clamp(2.8rem,4.8vw,4.7rem)]">{title}</h1><p className="mt-4 max-w-2xl text-base leading-7 text-muted">{description}</p></div>{action && <div className="shrink-0">{action}</div>}</header>
+  return <header className="hero-header mb-6 flex flex-col justify-between gap-6 md:flex-row md:items-end"><div className="min-w-0"><p className="eyebrow mb-1.5">{eyebrow}</p><h1 className="hero-title font-bold text-ink">{title}</h1><p className="mt-4 max-w-2xl text-base leading-7 text-muted">{description}</p></div>{action && <div className="shrink-0">{action}</div>}</header>
 }
 
 export function StatCard({ label, value, hint, icon: Icon, tone = 'blue' }: { label: string; value: string | number; hint: string; icon: React.ElementType; tone?: 'blue' | 'green' | 'amber' | 'purple' }) {
