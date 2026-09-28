@@ -2,7 +2,7 @@
 
 ### Remember what failed. Recommend what worked. Verify recovery.
 
-An incident-response prototype that uses past experience to help engineers investigate failures, choose a fix, and recover failed operations. **Hindsight is the planned shared memory at the center of the system.**
+An incident-response prototype that uses past experience to help engineers investigate failures, choose a fix, and recover failed operations. **Hindsight is the shared-memory integration at the center of the design; the default demo uses a local mock.**
 
 ## The problem
 
@@ -26,7 +26,7 @@ The intended users are incident-response engineers and service support teams. Th
 
 ## Architecture
 
-**Working simulated workflow** ? investigation, approval checks, remediation, retries, verification, and memory feedback run locally. Real Hindsight and LLM integration remain planned.
+**Working simulated workflow** ? investigation, approval checks, remediation, retries, verification, and memory feedback run locally. The real Hindsight adapter is implemented; live service verification and LLM reasoning remain pending.
 
 ```text
 Incident / Failure
@@ -104,9 +104,9 @@ The working prototype runs the complete recovery loop against an isolated simula
 - **18 synthetic historical incidents**, **6 held-out cases**, and **54 recorded action outcomes** across six incident families.
 - A mock memory interface and a rule-based investigation baseline.
 - An explicit action policy, approval checks, simulated remediation and retries, independent simulated health checks, and outcome storage.
-- Tests for evidence handling, recommendations, conflicting history, and data integrity: **38 tests passed in the latest full run**.
+- Tests for evidence handling, recommendations, conflicting history, and data integrity: **50 tests passed in the latest full run**.
 
-**Still to build:** real Hindsight integration, LLM reasoning, and measured evaluation. Approvals are trusted local inputs; production authentication and durable workflow execution are outside this prototype. Every action and health check is simulated, and memory resets on exit. Recovery-time savings and production accuracy have not yet been measured.
+**Next:** configure and verify the real Hindsight service, add LLM reasoning, and measure results. The optional Hindsight adapter is implemented and tested offline. Approvals are trusted local inputs; production authentication and durable workflow execution are outside this prototype. Every action and health check is simulated. Mock memory resets on exit; the real backend is designed to retain source records in Hindsight. Recovery-time savings and production accuracy have not yet been measured.
 
 ## Try the prototype
 
@@ -116,7 +116,7 @@ Follow the [setup and demo instructions](docs/getting-started.md). Once dependen
 python main.py
 ```
 
-The output shows two simulated recoveries, evidence recalled from the first incident, and a high-risk action paused for approval. Structured investigation and workflow results are available through the Python service API. All demo data is synthetic; no production connection or API key is needed.
+The output shows two simulated recoveries, evidence recalled from the first incident, and a high-risk action paused for approval. Structured investigation and workflow results are available through the Python service API. All demo data is synthetic. Default mock mode needs no production connection or API key. [Real Hindsight setup](docs/hindsight-setup.md) is optional and requires a configured service.
 
 ## How we will measure success
 

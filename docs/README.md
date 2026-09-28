@@ -10,6 +10,8 @@
 | [Phase 2: investigation](phase-2-investigation.md) | Recommendation logic, evidence handling, and checks |
 | [Phase 3: actions](phase-3-actions.md) | Action policy, approvals, and simulated remediation |
 | [Phase 4: recovery](phase-4-recovery.md) | Retries, independent verification, outcome storage, and feedback |
+| [Phase 5A: Hindsight adapter](phase-5-hindsight.md) | SDK adapter, backend selection, and offline validation |
+| [Hindsight setup](hindsight-setup.md) | Service configuration and cross-process persistence checks |
 | [Remaining phases](roadmap.md) | Real Hindsight, LLM integration, and measured evaluation |
 | [Implementation reference](implementation.md) | File guide, package structure, data contracts, and mock-memory behavior |
 

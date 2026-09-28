@@ -6,7 +6,7 @@ Phases 1?4 now provide the complete local simulation: investigation, policy chec
 
 ## Phase 5: real Hindsight and configurable LLM reasoning
 
-1. Verify the actual Hindsight SDK/API and implement an adapter behind `HindsightClient`.
+1. Adapter implemented against the official SDK. Configure a service and complete the [live persistence check](hindsight-setup.md).
 2. Add one configurable LLM client for interpretation and recommendation synthesis.
 3. Validate structured responses against the existing contracts and retain evidence references.
 4. Keep arithmetic, risk authorization, and execution checks in deterministic Python.

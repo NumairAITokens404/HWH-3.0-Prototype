@@ -1,7 +1,7 @@
 """Application-owned interface and offline mock, not Hindsight SDK methods.
 
-TODO: Implement a real Hindsight adapter behind HindsightClient after selecting
-and verifying the SDK. No external service or semantic search is used here.
+The real SDK adapter lives in hindsight_adapter.py. This module's mock remains
+offline and uses deterministic lexical scoring.
 """
 
 import re

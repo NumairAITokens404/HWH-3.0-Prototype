@@ -19,6 +19,9 @@
 | `tools/reprocessing_tools.py` | Retry entry point with a remediation prerequisite. |
 | `tools/simulation.py` | Own explicit scenario truth and mutable local operation state. |
 | `tools/incident_tools.py` | Reserved placeholder for future incident inspection helpers. |
+| `memory/hindsight_adapter.py`, `memory/factory.py` | Real SDK adapter and explicit backend selection; live verification pending. |
+| `memory/check_hindsight.py` | Connection and persistent write/read probe. |
+| `tests/test_hindsight_adapter.py` | 12 offline adapter and SDK contract tests. |
 | `memory/hindsight_client.py` | Memory protocol and local in-memory implementation. |
 | `memory/memory_writer.py` | Validate datasets and seed historical records. |
 | `memory/memory_retriever.py` | Small facade that preserves complete histories. |
@@ -73,7 +76,7 @@ Each family has three historical incidents and one held-out case. Historical rec
 - `retrieve_failed_actions(incident_id)`
 - `retrieve_successful_actions(incident_id)`
 
-`MockHindsightClient` implements this contract locally. These names are not claims about methods in the real Hindsight SDK. The adapter file marks the future integration point explicitly.
+`MockHindsightClient` implements this contract locally. These names are not claims about methods in the real Hindsight SDK. The real implementation is in `hindsight_adapter.py`; see the Phase 5A document for its validation status.
 
 Retrieval ranks records using service match (0.4), error-code match (0.3), symptom-token Jaccard overlap (0.2), and environment match (0.1). Environment alone cannot produce a match. Results exclude the query's own ID, break ties by incident ID, and include complete histories, including failed and partial outcomes. The similarity score is a deterministic mock ranking score, not calibrated confidence or semantic relevance.
 

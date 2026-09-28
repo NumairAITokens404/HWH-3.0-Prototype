@@ -4,7 +4,7 @@
 
 ## Setup and run
 
-Use Python 3.10 or newer. Tested locally with Python 3.13 and Pydantic 2.13.5. Install dependencies once; the demo then runs offline without API keys.
+Use Python 3.10 or newer. Tested locally with Python 3.13 and Pydantic 2.13.5. Install dependencies once; default mock mode runs offline without API keys. For optional persistent memory, follow [Hindsight setup](hindsight-setup.md).
 
 ### Windows PowerShell
 
@@ -69,4 +69,4 @@ if result.status == "HUMAN_APPROVAL_REQUIRED":
 
 Here `workflow`, `incident`, `reviewer_approved`, and `reviewer_name` are inputs supplied by the integrating application. This is an API example, not an automatic approval script. Approval is bound to the full incident, recommendation, and policy rule. The local prototype trusts reviewer inputs; it does not authenticate users.
 
-Reuse the same workflow instance to resume approvals or repeat calls. Completed results are cached, and a failed memory write can be retried without rerunning actions. This guarantee is limited to the synchronous in-process instance. All state is lost on exit.
+Reuse the same workflow instance to resume approvals or repeat calls. Completed results are cached, and a failed memory write can be retried without rerunning actions. This guarantee is limited to the synchronous in-process instance. Workflow state is lost on exit. Mock incident memory also resets; the optional real adapter uses server-side source records.

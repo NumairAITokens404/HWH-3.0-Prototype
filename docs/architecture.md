@@ -21,7 +21,7 @@ Human approval authorizes a remediation; it does not itself fix the incident. Ap
 | --- | --- | --- |
 | Incident Investigator | `agents/incident_investigator.py` | Deterministic baseline implemented |
 | Historical similarity and remediation analysis | `agents/remediation_memory.py`, `memory/memory_retriever.py` | Implemented against mock memory |
-| Hindsight memory | `memory/hindsight_client.py`, `memory/memory_writer.py` | Protocol and local mock; real integration planned |
+| Hindsight memory | `memory/hindsight_client.py`, `memory/memory_writer.py` | Protocol, mock, and real SDK adapter; live verification pending |
 | Action Decision Layer | `tools/risk_classifier.py` | Implemented simulation allowlist and bound approvals |
 | Auto Remediation Agent | `agents/auto_remediation.py`, remediation service/tools | Implemented for local simulation |
 | Reprocessing Agent | `agents/reprocessing.py`, `tools/reprocessing_tools.py` | Implemented with remediation prerequisite |
