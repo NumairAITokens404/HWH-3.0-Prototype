@@ -11,4 +11,5 @@ export interface IncidentApi {
   createUpload(files: File[]): Promise<UploadJob[]>
   advanceUpload(job: UploadJob): Promise<UploadJob>
   getEvaluation(): Promise<EvaluationSummary>
+  resetDemo(): Promise<void>
 }

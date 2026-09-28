@@ -10,6 +10,7 @@ from typing import Protocol
 from pydantic import Field
 
 from schemas.incident import Incident, Schema
+from schemas.ingestion import FailedRemediationChunk
 from schemas.outcome import IncidentMemory, Outcome
 
 
@@ -25,6 +26,8 @@ class HindsightClient(Protocol):
     def store_remediation_outcome(self, outcome: Outcome) -> None: ...
     def retrieve_failed_actions(self, incident_id: str) -> list[Outcome]: ...
     def retrieve_successful_actions(self, incident_id: str) -> list[Outcome]: ...
+    def store_failed_remediation_chunks(self, chunks: list[FailedRemediationChunk]) -> None: ...
+    def retrieve_failed_remediation_chunks(self, query: str, limit: int = 10) -> list[FailedRemediationChunk]: ...
 
 
 def _tokens(incident: Incident) -> set[str]:
@@ -40,6 +43,7 @@ class MockHindsightClient:
 
     def __init__(self):
         self._memories: dict[str, IncidentMemory] = {}
+        self._failed_chunks: dict[str, FailedRemediationChunk] = {}
 
     def get_incident_memory(self, incident_id: str) -> IncidentMemory | None:
         memory = self._memories.get(incident_id)
@@ -96,3 +100,25 @@ class MockHindsightClient:
 
     def retrieve_successful_actions(self, incident_id: str) -> list[Outcome]:
         return self._outcomes(incident_id, "SUCCESS")
+
+    def store_failed_remediation_chunks(self, chunks: list[FailedRemediationChunk]) -> None:
+        for chunk in chunks:
+            chunk = FailedRemediationChunk.model_validate(chunk.model_dump())
+            existing = self._failed_chunks.get(chunk.chunk_id)
+            if existing is not None and existing != chunk:
+                raise ValueError(f"Conflicting failed-remediation chunk: {chunk.chunk_id}")
+            self._failed_chunks[chunk.chunk_id] = chunk.model_copy(deep=True)
+
+    def retrieve_failed_remediation_chunks(self, query: str, limit: int = 10) -> list[FailedRemediationChunk]:
+        if not query.strip():
+            raise ValueError("query must not be empty")
+        if isinstance(limit, bool) or not isinstance(limit, int) or limit < 1 or limit > 100:
+            raise ValueError("limit must be an integer from 1 to 100")
+        query_tokens = set(re.findall(r"[a-z0-9]+", query.casefold()))
+        ranked = []
+        for chunk in self._failed_chunks.values():
+            tokens = set(re.findall(r"[a-z0-9]+", chunk.content.casefold()))
+            score = len(query_tokens & tokens) / max(1, len(query_tokens | tokens))
+            if score:
+                ranked.append((score, chunk.chunk_id, chunk))
+        return [item[2].model_copy(deep=True) for item in sorted(ranked, key=lambda item: (-item[0], item[1]))[:limit]]

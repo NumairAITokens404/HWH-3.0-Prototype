@@ -8,15 +8,18 @@
 2. **Investigation:** ordered-outcome analysis, evidence-backed recommendations, and abstention.
 3. **Action control:** fixed risk policy, approval binding, and simulated remediation.
 4. **Recovery:** conditional retry, independent verification, and outcome feedback.
-5. **Integrations:** official Hindsight adapter, durable SQLite alternative, Ollama structured inference, and CLI.
+5. **Integrations:** official Hindsight adapter, durable SQLite alternative, Ollama structured inference, CLI, and typed FastAPI layer.
 6. **Evaluation:** isolated with/without-memory comparison plus unfamiliar, missing, and conflicting-evidence challenges.
+7. **Ingestion:** validated JSON, CSV, Markdown, text/log, and text-based PDF uploads; complete-record retention; failed-remediation chunks; local search; and Hindsight embedding handoff.
+8. **Workflow durability:** restart-safe pending approvals, pre-execution checkpoints, append-only audit history, and Docker volume packaging.
+9. **Sandbox connectors:** explicit execution modes, fixed action routes, bearer authentication, durable at-most-once receipts, and independent status verification.
+10. **Checkpoint hardening:** connector receipt reconciliation, optional authenticated reviewer identities, a reproducible dataset audit, and non-root container execution.
 
 ## Next live integrations
 
-1. Connect the existing adapter to a running Hindsight service and verify cross-process persistence and semantic retrieval.
-2. Replace simulated action tools with sandboxed service connectors and authenticated approval identities.
-3. Add durable workflow state so an approval can resume safely after a process restart.
-4. Evaluate on a larger incident dataset with blinded labels and production-relevant retrieval judgments.
-5. Add an engineer dashboard after the workflow and evidence contracts are stable.
+1. Connect the existing adapter to a running Hindsight service and verify uploaded-document embeddings, cross-process persistence, and semantic retrieval.
+2. Add OCR only if scanned postmortems become a required input source.
+3. Replace synthetic connector and reviewer credentials with the deployment secret manager before connecting production services.
+4. Acquire and de-identify a larger incident dataset with blinded labels and production-relevant retrieval judgments.
 
 The current prototype deliberately makes no production accuracy, security, or recovery-time claim. Its complete end-to-end path is local and simulated.

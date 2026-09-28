@@ -48,6 +48,19 @@ class LocalRuntimeTests(unittest.TestCase):
                 self.assertEqual(settings.memory_backend, "sqlite")
                 self.assertNotIn("LLM_PROVIDER", os.environ)
 
+    def test_api_origins_are_parsed_and_validated(self):
+        with tempfile.TemporaryDirectory(dir=ROOT, prefix=".test-env-") as directory:
+            env_file = Path(directory) / ".env"
+            env_file.write_text("API_CORS_ORIGINS=https://console.example.com,http://localhost:3000\n",
+                                encoding="utf-8")
+            with patch.dict(os.environ, {}, clear=True):
+                settings = Settings.from_env(env_file)
+            self.assertEqual(settings.api_cors_origins,
+                             ("https://console.example.com", "http://localhost:3000"))
+        for origin in ("file:///tmp/ui", "https://user:secret@example.com", "https://example.com/path"):
+            with self.assertRaises(ValueError):
+                Settings(data_dir=ROOT / "data", api_cors_origins=(origin,))
+
     def test_rules_evaluation_isolated_and_metrics_are_real_counts(self):
         report = evaluate(Settings(data_dir=ROOT / "data"))
         empty = report["variants"]["without_memory"]["metrics"]

@@ -1,0 +1,36 @@
+services:
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      INCIDENT_DATA_DIR: /app/data
+      MEMORY_BACKEND: ${MEMORY_BACKEND:-sqlite}
+      SQLITE_PATH: /app/.runtime/incidents.sqlite3
+      WORKFLOW_DB_PATH: /app/.runtime/workflows.sqlite3
+      ACTION_BACKEND: ${ACTION_BACKEND:-simulation}
+      CONNECTOR_BASE_URL: ${DOCKER_CONNECTOR_BASE_URL:-http://host.docker.internal:9000}
+      CONNECTOR_API_KEY: ${CONNECTOR_API_KEY:-}
+      CONNECTOR_TIMEOUT: ${CONNECTOR_TIMEOUT:-30}
+      CONNECTOR_RECEIPT_DB_PATH: /app/.runtime/connector-receipts.sqlite3
+      LLM_PROVIDER: ${LLM_PROVIDER:-ollama}
+      LLM_BASE_URL: ${DOCKER_LLM_BASE_URL:-http://host.docker.internal:11434}
+      LLM_MODEL: ${LLM_MODEL:-qwen3.5:9b}
+      HINDSIGHT_BASE_URL: ${DOCKER_HINDSIGHT_BASE_URL:-http://host.docker.internal:8888}
+      HINDSIGHT_BANK_ID: ${HINDSIGHT_BANK_ID:-adaptive-incident-intelligence}
+      HINDSIGHT_API_KEY: ${HINDSIGHT_API_KEY:-}
+      API_CORS_ORIGINS: ${API_CORS_ORIGINS:-http://localhost:5173,http://127.0.0.1:5173}
+      APPROVAL_IDENTITIES_JSON: ${APPROVAL_IDENTITIES_JSON:-{}}
+    volumes:
+      - adaptive-runtime:/app/.runtime
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=5)"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  adaptive-runtime:

@@ -38,9 +38,17 @@
 | `tests/test_workflow.py` | Approval, execution, verification, and memory feedback: 16 tests. |
 | `llm/client.py`, `llm/prompts.py` | Bounded Ollama structured output and the evidence-only prompt. |
 | `schemas/llm.py` | Strict model proposal contract, separate from authorization. |
+| `schemas/ingestion.py`, `services/ingestion_service.py` | Upload result, failed-remediation chunks, validation, chunking, and storage orchestration. |
+| `schemas/workflow_state.py`, `services/workflow_store.py` | Durable approval checkpoints, execution states, and append-only audit events. |
+| `tools/execution_backend.py`, `tools/connectors.py` | Shared execution boundary, allowlisted sandbox HTTP connector, and durable at-most-once receipts. |
 | `evaluation/evaluate_memory.py`, `evaluation/metrics.py` | Isolated with/without-memory comparison, safety challenges, and metrics. |
 | `config.py`, `.env.example` | Automatic `.env` loading and validated memory/model configuration. |
 | `cli.py`, `main.py` | Demo, investigate, scenario run, JSON output, and interactive approval. |
+| `api/app.py`, `api/models.py`, `api/runtime.py` | FastAPI contract, provider capability reporting, named demo scenarios, and bounded pending approvals. |
+| `tests/test_api.py` | HTTP validation, OpenAPI, CORS-facing contracts, approval lifecycle, and capacity behavior. |
+| `tests/test_ingestion.py` | Upload validation, conflict preflight, bounded chunks, idempotence, search, and SQLite persistence. |
+| `tests/test_workflow_store.py` | Cross-restart approval recovery, terminal-state protection, and audit history. |
+| `tests/test_connectors.py` | Policy defense, durable receipt replay, uncertain-call blocking, and independent verification. |
 | `requirements.txt`, `.gitignore`, `__init__.py` files | Dependencies, ignored artifacts, and package structure. |
 | `README.md`, `docs/` | Project overview and phase/technical documentation. |
 

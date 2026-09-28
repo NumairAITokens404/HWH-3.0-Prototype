@@ -10,7 +10,7 @@ npm install
 npm run dev
 ```
 
-Open the URL printed by Vite. The application currently uses a typed mock adapter and transforms the repository fixtures in `../data/` into UI responses.
+Copy `.env.example` to `.env`, start the Python API on port 8000, and open the URL printed by Vite. `VITE_API_MODE=http` connects the console to FastAPI. Set it to `mock` for a fixture-only UI demonstration.
 
 ## Validate
 
@@ -33,19 +33,25 @@ npm run build
 
 ## API boundary
 
-Pages use the `IncidentApi` interface in `src/api/client.ts`. `src/api/mockApi.ts` supplies fixture-backed behavior. `src/api/httpApi.ts` documents the planned HTTP endpoint mapping. Switch the exported adapter in `src/api/index.ts` after those endpoints exist.
+Pages use the `IncidentApi` interface in `src/api/client.ts`. `src/api/httpApi.ts` maps it to FastAPI, while `src/api/mockApi.ts` remains available for an offline UI demonstration.
 
-Planned integration points:
+Live integration points:
 
 - `POST /api/memory/uploads`
-- `GET /api/memory/uploads/:jobId`
-- `GET /api/memory/search`
+- `GET /api/ui/memory`
 - `POST /api/incidents/investigate`
-- `POST /api/workflows`
-- `POST /api/workflows/:incidentId/approval`
-- `GET /api/evaluation/summary`
+- `GET /api/ui/incidents`
+- `GET /api/ui/incidents/:incidentId`
+- `POST /api/ui/incidents/:incidentId/workflow`
+- `POST /api/ui/incidents/:incidentId/approval`
+- `GET /api/ui/overview`
+- `GET /api/ui/evaluation`
 
-All remediation actions and observations shown by the current frontend are explicitly simulated. Hindsight storage and embedding stages are represented by the mock adapter until the corresponding backend endpoints are available.
+All remediation actions and observations shown by the frontend remain explicitly simulated. Uploads use the configured memory backend; Hindsight performs embeddings when that backend is active.
+
+## Demo lifecycle
+
+The live dashboard begins with an empty session: no incident queue, memory records, or improved evaluation score is shown until a valid history file is uploaded. **Load demo dataset** uploads the repository's real `data/remediation_history.json` fixture. **Reset demo** on the overview clears the dashboard session so the before/after story can be demonstrated again. The configured durable backend still receives uploads; the session projection prevents previous local runs from pre-populating a new demonstration.
 
 ## Design system
 

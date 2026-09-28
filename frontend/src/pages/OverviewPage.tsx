@@ -1,13 +1,15 @@
-import { useQuery } from '@tanstack/react-query'
-import { ArrowRight, BrainCircuit, CheckCircle2, Clock3, Database, ShieldAlert, Sparkles } from 'lucide-react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { ArrowRight, BrainCircuit, CheckCircle2, Clock3, Database, RotateCcw, ShieldAlert, Sparkles } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { api } from '../api'
 import { LoadingState, PageHeader, StatCard, StatusBadge, WorkflowNotice } from '../components/ui'
 
 export function OverviewPage() {
+  const queryClient = useQueryClient()
   const { data, isLoading } = useQuery({ queryKey: ['overview'], queryFn: () => api.getOverview() })
+  const reset = useMutation({ mutationFn: () => api.resetDemo(), onSuccess: () => queryClient.invalidateQueries() })
   if (isLoading || !data) return <LoadingState />
-  return <><PageHeader eyebrow="Operations overview" title="See what memory changes during an incident" description="Track active response work, approval gates, verified recovery, and the historical evidence used for every recommendation." action={<Link to="/incidents/TEST-002" className="btn-primary"><Sparkles size={17} />Run demo incident</Link>} />
+  return <><PageHeader eyebrow="Operations overview" title="See what memory changes during an incident" description="Track active response work, approval gates, verified recovery, and the historical evidence used for every recommendation." action={<div className="flex gap-2"><button type="button" className="btn-secondary" onClick={() => reset.mutate()} disabled={reset.isPending}><RotateCcw size={16} />Reset demo</button><Link to="/memory/upload" className="btn-primary"><Sparkles size={17} />Load evidence</Link></div>} />
     <WorkflowNotice type="simulation"><strong>Safe demonstration:</strong> remediation, reprocessing, and system observations shown in this console are simulated. Approval authorizes an attempt; verification establishes recovery.</WorkflowNotice>
     <div className="panel mt-4 grid overflow-hidden sm:grid-cols-2 xl:grid-cols-5"><StatCard label="Active incidents" value={data.active} hint="Across production services" icon={ShieldAlert} /><StatCard label="Resolved" value={data.resolved} hint="Verified service and operation" icon={CheckCircle2} tone="green" /><StatCard label="Pending approvals" value={data.pendingApprovals} hint="Medium and high risk" icon={Clock3} tone="amber" /><StatCard label="Memory records" value={data.memoryRecords} hint="Complete incident histories" icon={Database} tone="purple" /><StatCard label="Failed fixes avoided" value={data.failedFixesAvoided} hint="Preserved as negative evidence" icon={BrainCircuit} tone="blue" /></div>
     <div className="mt-6 grid gap-6 xl:grid-cols-[1.5fr_1fr]"><section className="panel"><div className="panel-header"><div><p className="eyebrow">Recent activity</p><h2 className="mt-1 font-bold text-navy-900">Incident queue</h2></div><Link to="/incidents" className="text-sm font-semibold text-blue-700">View all</Link></div><div className="divide-y">{data.recent.map((incident) => <Link key={incident.incident_id} to={`/incidents/${incident.incident_id}`} className="flex items-center gap-4 px-5 py-4 hover:bg-slate-50"><span className={`h-2.5 w-2.5 rounded-full ${incident.severity === 'HIGH' || incident.severity === 'CRITICAL' ? 'bg-red-500' : 'bg-amber-500'}`} /><div className="min-w-0 flex-1"><p className="font-mono text-sm font-semibold">{incident.incident_id}</p><p className="truncate text-xs text-slate-500">{incident.service} · {incident.error_code}</p></div><StatusBadge value={incident.status} /><ArrowRight size={16} className="text-slate-400" /></Link>)}</div></section>

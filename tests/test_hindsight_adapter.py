@@ -2,14 +2,17 @@
 
 from pathlib import Path
 from types import SimpleNamespace
+import asyncio
 import unittest
 from unittest.mock import AsyncMock, patch
 
 from config import Settings
 from memory.factory import create_memory_client
-from memory.hindsight_adapter import HindsightMemoryClient, HindsightUnavailable, SDKTransport, document_id
+from memory.hindsight_adapter import (HindsightMemoryClient, HindsightUnavailable, SDKTransport,
+                                      document_id, failed_chunk_document_id)
 from memory.hindsight_client import MockHindsightClient
 from memory.memory_writer import load_datasets
+from services.ingestion_service import failed_remediation_chunks
 
 
 class FakeTransport:
@@ -87,6 +90,15 @@ class AdapterTests(unittest.TestCase):
         other = HindsightMemoryClient(Settings(data_dir=Path("data"), hindsight_bank_id="other"), self.transport)
         self.assertEqual(other.retrieve_similar_incidents(self.query), [])
 
+    def test_failed_chunks_are_retained_separately_and_searchable(self):
+        chunks = failed_remediation_chunks(self.record, "history.json")
+        self.client.store_failed_remediation_chunks(chunks)
+        self.assertRegex(failed_chunk_document_id(chunks[0].chunk_id), r"^aii-failed-[0-9a-f]{64}$")
+        self.assertEqual(self.client.retrieve_failed_remediation_chunks("retry failure"), chunks)
+        # Failed-remediation documents must never be parsed as complete incident records.
+        self.client.store_incident_memory(self.record)
+        self.assertEqual(self.client.retrieve_similar_incidents(self.query)[0].memory, self.record)
+
     def test_missing_recalled_document_fails(self):
         with patch.object(self.transport, "call", side_effect=[SimpleNamespace(results=[SimpleNamespace(document_id="aii-missing")]), None]):
             with self.assertRaises(ValueError):
@@ -122,6 +134,17 @@ class SDKContractTests(unittest.TestCase):
             result = SDKTransport(Settings(data_dir=Path("data"))).call("get_document", bank_id="b", document_id="d")
         self.assertEqual(result, "{}")
         sdk.documents.get_document.assert_awaited_once_with(bank_id="b", document_id="d", _request_timeout=120.0)
+        sdk.aclose.assert_awaited_once()
+
+    def test_sdk_call_works_inside_running_event_loop(self):
+        sdk = SimpleNamespace(documents=SimpleNamespace(get_document=AsyncMock(return_value=SimpleNamespace(original_text="{}"))), aclose=AsyncMock())
+
+        async def invoke():
+            with patch("hindsight_client.Hindsight", return_value=sdk):
+                return SDKTransport(Settings(data_dir=Path("data"))).call("get_document", bank_id="b", document_id="d")
+
+        result = asyncio.run(invoke())
+        self.assertEqual(result, "{}")
         sdk.aclose.assert_awaited_once()
 
     def test_sdk_only_404_is_absence_and_errors_are_sanitized(self):
