@@ -4,14 +4,15 @@
 
 ## Target flow
 
-1. An incident arrives with service, symptoms, error, environment, and operation context.
-2. The Incident Investigator consults Hindsight memory and historical similarity/remediation analysis.
-3. It returns a likely cause, recommended action, evidence, and confidence assessment.
-4. The Action Decision Layer checks an explicit action policy.
-5. The Auto Remediation Agent executes an allowed low-risk action, or waits for human approval for a medium/high-risk action. Rejected actions stop here.
-6. After successful remediation, the Reprocessing Agent retries the failed transaction, request, or job.
-7. Outcome Verification checks whether the underlying problem and failed operation recovered.
-8. Resolved, failed, and partial outcomes are written to Hindsight for later investigations.
+1. Historical incident files are validated and retained as complete records. Failed and partial outcomes are also indexed as traceable remediation chunks; Hindsight performs native chunking and embedding.
+2. An incident arrives with service, symptoms, error, environment, and operation context.
+3. The Incident Investigator consults Hindsight memory and historical similarity/remediation analysis.
+4. It returns a likely cause, recommended action, evidence, and confidence assessment.
+5. The Action Decision Layer checks an explicit action policy.
+6. The Auto Remediation Agent executes an allowed low-risk action, or waits for human approval for a medium/high-risk action. Rejected actions stop here.
+7. After successful remediation, the Reprocessing Agent retries the failed transaction, request, or job.
+8. Outcome Verification checks whether the underlying problem and failed operation recovered.
+9. Resolved, failed, and partial outcomes are written to Hindsight for later investigations.
 
 Human approval authorizes a remediation; it does not itself fix the incident. Approved actions still need execution before reprocessing. This makes the approval branch in the supplied architecture explicit.
 
@@ -28,6 +29,7 @@ Human approval authorizes a remediation; it does not itself fix the incident. Ap
 | Outcome Verification | `agents/outcome_verifier.py`, `services/verification_service.py` | Independent simulated health and operation checks |
 | Memory update | All memory clients through the shared protocol | Verified simulated outcomes written by `IncidentWorkflow` |
 | Web API | `api/app.py`, `api/runtime.py` | Typed investigation, named demo workflow, and approval endpoints |
+| File ingestion and failed-remediation index | `services/ingestion_service.py`, `schemas/ingestion.py` | JSON validation, bounded chunks, local persistence/search, and Hindsight retention |
 
 The Remediation Memory module supports the investigator. It is distinct from the Auto Remediation Agent, which executes approved actions.
 

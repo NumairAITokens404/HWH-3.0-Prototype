@@ -24,6 +24,7 @@ class Settings:
     llm_context: int = 8192
     llm_max_tokens: int = 1200
     api_cors_origins: tuple[str, ...] = ("http://localhost:5173", "http://127.0.0.1:5173")
+    api_upload_max_bytes: int = 5 * 1024 * 1024
 
     def __post_init__(self):
         if self.memory_backend not in {"mock", "sqlite", "hindsight"}:
@@ -50,6 +51,8 @@ class Settings:
                     or parsed.username or parsed.password or parsed.query or parsed.fragment
                     or parsed.path not in {"", "/"}):
                 raise ValueError("API_CORS_ORIGINS must contain HTTP(S) origins without paths")
+        if not 1024 <= self.api_upload_max_bytes <= 25 * 1024 * 1024:
+            raise ValueError("API_UPLOAD_MAX_BYTES must be between 1 KiB and 25 MiB")
 
     @classmethod
     def from_env(cls, env_file: Path | None = None):
@@ -75,4 +78,5 @@ class Settings:
                    llm_timeout=float(value("LLM_TIMEOUT", "120")),
                    llm_context=int(value("LLM_CONTEXT", "8192")),
                    llm_max_tokens=int(value("LLM_MAX_TOKENS", "1200")),
-                   api_cors_origins=origins)
+                   api_cors_origins=origins,
+                   api_upload_max_bytes=int(value("API_UPLOAD_MAX_BYTES", str(5 * 1024 * 1024))))

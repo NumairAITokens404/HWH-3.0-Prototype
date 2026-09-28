@@ -5,6 +5,7 @@ from pathlib import Path
 import sqlite3
 from memory.hindsight_client import MemoryMatch, MockHindsightClient
 from schemas.incident import Incident
+from schemas.ingestion import FailedRemediationChunk
 from schemas.outcome import IncidentMemory, Outcome
 
 
@@ -14,6 +15,8 @@ class SQLiteMemoryClient:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         with self._connection() as connection:
             connection.execute("CREATE TABLE IF NOT EXISTS incidents (incident_id TEXT PRIMARY KEY, record TEXT NOT NULL)")
+            connection.execute("""CREATE TABLE IF NOT EXISTS failed_remediation_chunks (
+                               chunk_id TEXT PRIMARY KEY, incident_id TEXT NOT NULL, record TEXT NOT NULL)""")
 
     @contextmanager
     def _connection(self):
@@ -74,3 +77,24 @@ class SQLiteMemoryClient:
 
     def retrieve_successful_actions(self, incident_id: str) -> list[Outcome]:
         return self._outcomes(incident_id, "SUCCESS")
+
+    def store_failed_remediation_chunks(self, chunks: list[FailedRemediationChunk]) -> None:
+        validated = [FailedRemediationChunk.model_validate(item.model_dump()) for item in chunks]
+        with self._connection() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            for chunk in validated:
+                row = connection.execute("SELECT record FROM failed_remediation_chunks WHERE chunk_id = ?",
+                                         (chunk.chunk_id,)).fetchone()
+                if row:
+                    if FailedRemediationChunk.model_validate_json(row[0]) != chunk:
+                        raise ValueError("Conflicting failed-remediation chunk ID")
+                    continue
+                connection.execute("INSERT INTO failed_remediation_chunks VALUES (?, ?, ?)",
+                                   (chunk.chunk_id, chunk.incident_id, chunk.model_dump_json()))
+
+    def retrieve_failed_remediation_chunks(self, query: str, limit: int = 10) -> list[FailedRemediationChunk]:
+        ranking = MockHindsightClient()
+        with self._connection() as connection:
+            rows = connection.execute("SELECT record FROM failed_remediation_chunks ORDER BY chunk_id").fetchall()
+        ranking.store_failed_remediation_chunks([FailedRemediationChunk.model_validate_json(row[0]) for row in rows])
+        return ranking.retrieve_failed_remediation_chunks(query, limit)

@@ -1,7 +1,8 @@
 """FastAPI application factory for UI and demo integrations."""
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, File, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.concurrency import run_in_threadpool
 
 from api.models import (ApprovalSubmission, CapabilityResponse, DemoScenarioInfo,
                         DemoWorkflowRequest, HealthResponse)
@@ -9,8 +10,10 @@ from api.runtime import ApiRuntime, SCENARIOS
 from config import Settings
 from memory.hindsight_adapter import HindsightUnavailable
 from schemas.incident import Incident
+from schemas.ingestion import FailedRemediationSearchResult, IngestionResult
 from schemas.investigation import InvestigationResult
 from schemas.workflow import WorkflowResult
+from services.ingestion_service import IngestionValidationError
 
 
 def create_app(settings: Settings | None = None, runtime: ApiRuntime | None = None) -> FastAPI:
@@ -23,6 +26,8 @@ def create_app(settings: Settings | None = None, runtime: ApiRuntime | None = No
                        allow_credentials=False, allow_methods=["GET", "POST"], allow_headers=["Content-Type"])
 
     def domain_error(exc: Exception):
+        if isinstance(exc, IngestionValidationError):
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
         if isinstance(exc, KeyError):
             raise HTTPException(status_code=404, detail=str(exc.args[0])) from exc
         if isinstance(exc, HindsightUnavailable):
@@ -39,7 +44,31 @@ def create_app(settings: Settings | None = None, runtime: ApiRuntime | None = No
     @app.get("/api/capabilities", response_model=CapabilityResponse, tags=["system"])
     def capabilities():
         return CapabilityResponse(persistent_memory=settings.memory_backend in {"sqlite", "hindsight"},
-                                  live_hindsight=settings.memory_backend == "hindsight")
+                                  live_hindsight=settings.memory_backend == "hindsight",
+                                  embedding_provider="hindsight" if settings.memory_backend == "hindsight" else "none")
+
+    @app.post("/api/memory/uploads", response_model=IngestionResult, status_code=201, tags=["memory"])
+    async def upload_memory(file: UploadFile = File(...)):
+        filename = file.filename or ""
+        if not filename.casefold().endswith(".json"):
+            raise HTTPException(status_code=415, detail="Only UTF-8 JSON incident-history files are supported")
+        content = await file.read(settings.api_upload_max_bytes + 1)
+        await file.close()
+        if len(content) > settings.api_upload_max_bytes:
+            raise HTTPException(status_code=413, detail="Uploaded file exceeds API_UPLOAD_MAX_BYTES")
+        try:
+            return await run_in_threadpool(runtime.ingest, content, filename)
+        except (ValueError, KeyError, RuntimeError, HindsightUnavailable) as exc:
+            domain_error(exc)
+
+    @app.get("/api/memory/failed-remediations", response_model=FailedRemediationSearchResult,
+             tags=["memory"])
+    def search_failed_remediations(q: str = Query(min_length=1, max_length=1000),
+                                   limit: int = Query(default=10, ge=1, le=100)):
+        try:
+            return runtime.search_failed_remediations(q, limit)
+        except (ValueError, KeyError, RuntimeError, HindsightUnavailable) as exc:
+            domain_error(exc)
 
     @app.get("/api/demo/scenarios", response_model=list[DemoScenarioInfo], tags=["demo"])
     def demo_scenarios():

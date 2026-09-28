@@ -52,6 +52,7 @@ The LLM proposes and explains. Python owns citation checks, action support, risk
 - **Local reasoning:** Ollama with `qwen3.5:9b`, selected for the project machine's RTX 5070 Ti 12 GB GPU. The measured run used an 8,192-token context and loaded fully on the GPU.
 - **Persistent memory without Docker:** SQLite stores incidents and outcomes across runs.
 - **Hindsight-ready:** the official SDK adapter, backend selection, and offline contract tests are implemented. A live Hindsight service remains optional.
+- **History ingestion:** JSON incident-history uploads preserve complete records and create searchable failed-remediation chunks; Hindsight handles embeddings when configured.
 - **Complete simulated loop:** investigation, policy checks, human approval pause/resume, remediation, retry, independent verification, and memory feedback.
 - **Structured and guarded:** Pydantic validates every input and model proposal; malformed, truncated, unsupported, or uncited output is rejected or disclosed as fallback.
 - **Synthetic benchmark:** 18 historical incidents, 54 ordered outcomes, and 6 held-out cases across six failure families.
@@ -119,6 +120,9 @@ Useful commands:
 
 # Start the API for the web platform
 .venv\Scripts\python.exe -m uvicorn api.app:create_app --factory --reload --port 8000
+
+# Upload existing incident history after starting the API
+curl.exe -X POST http://127.0.0.1:8000/api/memory/uploads -F "file=@data/remediation_history.json;type=application/json"
 ```
 
 All actions, service checks, incidents, and outcomes in this repository are simulated or synthetic.
@@ -130,6 +134,7 @@ All actions, service checks, incidents, and outcomes in this repository are simu
 - [Local model and GPU setup](docs/local-model.md)
 - [Measured evaluation](docs/phase-6-evaluation.md)
 - [HTTP API for the web platform](docs/api.md)
+- [File ingestion and failed-remediation memory](docs/phase-7-ingestion.md)
 - [Implementation reference](docs/implementation.md)
 - [Optional Hindsight setup](docs/hindsight-setup.md)
 - [Build phases](docs/README.md)

@@ -18,6 +18,8 @@ Open `http://127.0.0.1:8000/docs` for the interactive API schema. Configure allo
 | --- | --- |
 | `GET /api/health` | Report configured memory/model providers and the simulation boundary. |
 | `GET /api/capabilities` | Tell the UI which integrations are active. |
+| `POST /api/memory/uploads` | Validate and ingest a JSON incident-history file. |
+| `GET /api/memory/failed-remediations` | Search failed and partial remediation chunks. |
 | `GET /api/demo/scenarios` | List server-owned demo scenarios without exposing their hidden expected actions. |
 | `POST /api/incidents/investigate` | Return a read-only recommendation for an `Incident`. |
 | `POST /api/demo/workflows` | Start a named simulated workflow. |
@@ -35,6 +37,11 @@ The API generates demo incident IDs. The browser never submits `required_action`
 
 ## UI integration
 
-Use the OpenAPI document at `/openapi.json` to generate TypeScript types. Keep the frontend mock adapter until each endpoint is integrated. `file_ingestion: false` in the capability response is intentional; upload, chunking, embeddings, and Hindsight ingestion are the next backend phase.
+Use the OpenAPI document at `/openapi.json` to generate TypeScript types. The capability response identifies JSON ingestion and whether embeddings are handled by Hindsight or unavailable in the local backend.
+
+```powershell
+curl.exe -X POST http://127.0.0.1:8000/api/memory/uploads -F "file=@data/remediation_history.json;type=application/json"
+curl.exe "http://127.0.0.1:8000/api/memory/failed-remediations?q=retry%20failed&limit=5"
+```
 
 All workflow actions and observations returned by these endpoints are simulated.

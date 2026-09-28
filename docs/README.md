@@ -13,6 +13,7 @@
 | [Phase 5A: Hindsight adapter](phase-5-hindsight.md) | SDK adapter, backend selection, and offline validation |
 | [Phase 5B: local LLM](phase-5-llm.md) | Ollama proposals, grounding checks, and fallback behavior |
 | [Phase 6: evaluation](phase-6-evaluation.md) | Reproducible comparison, metrics, and limitations |
+| [Phase 7: ingestion](phase-7-ingestion.md) | JSON uploads, validation, failed-remediation chunks, and embedding boundaries |
 | [Local model setup](local-model.md) | Qwen3.5 9B, Ollama, GPU checks, and CLI commands |
 | [HTTP API](api.md) | FastAPI startup, UI endpoints, approval lifecycle, and boundaries |
 | [Hindsight setup](hindsight-setup.md) | Service configuration and cross-process persistence checks |

@@ -7,9 +7,11 @@ from unittest.mock import AsyncMock, patch
 
 from config import Settings
 from memory.factory import create_memory_client
-from memory.hindsight_adapter import HindsightMemoryClient, HindsightUnavailable, SDKTransport, document_id
+from memory.hindsight_adapter import (HindsightMemoryClient, HindsightUnavailable, SDKTransport,
+                                      document_id, failed_chunk_document_id)
 from memory.hindsight_client import MockHindsightClient
 from memory.memory_writer import load_datasets
+from services.ingestion_service import failed_remediation_chunks
 
 
 class FakeTransport:
@@ -86,6 +88,15 @@ class AdapterTests(unittest.TestCase):
         self.client.store_incident_memory(self.record)
         other = HindsightMemoryClient(Settings(data_dir=Path("data"), hindsight_bank_id="other"), self.transport)
         self.assertEqual(other.retrieve_similar_incidents(self.query), [])
+
+    def test_failed_chunks_are_retained_separately_and_searchable(self):
+        chunks = failed_remediation_chunks(self.record, "history.json")
+        self.client.store_failed_remediation_chunks(chunks)
+        self.assertRegex(failed_chunk_document_id(chunks[0].chunk_id), r"^aii-failed-[0-9a-f]{64}$")
+        self.assertEqual(self.client.retrieve_failed_remediation_chunks("retry failure"), chunks)
+        # Failed-remediation documents must never be parsed as complete incident records.
+        self.client.store_incident_memory(self.record)
+        self.assertEqual(self.client.retrieve_similar_incidents(self.query)[0].memory, self.record)
 
     def test_missing_recalled_document_fails(self):
         with patch.object(self.transport, "call", side_effect=[SimpleNamespace(results=[SimpleNamespace(document_id="aii-missing")]), None]):

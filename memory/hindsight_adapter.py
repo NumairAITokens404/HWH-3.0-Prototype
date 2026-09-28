@@ -12,6 +12,7 @@ from typing import Protocol
 from config import Settings
 from memory.hindsight_client import MemoryMatch, MockHindsightClient
 from schemas.incident import Incident
+from schemas.ingestion import FailedRemediationChunk
 from schemas.outcome import IncidentMemory, Outcome
 
 
@@ -81,6 +82,10 @@ def document_id(incident_id: str) -> str:
     return "aii-" + sha256(incident_id.encode()).hexdigest()
 
 
+def failed_chunk_document_id(chunk_id: str) -> str:
+    return "aii-failed-" + sha256(chunk_id.encode()).hexdigest()
+
+
 class HindsightMemoryClient:
     def __init__(self, settings: Settings, transport: Transport | None = None):
         self.bank_id = settings.hindsight_bank_id
@@ -142,7 +147,8 @@ class HindsightMemoryClient:
                                        query=incident.model_dump_json(), types=["world", "experience"],
                                        budget="mid", max_tokens=4096, tags=["aii-v1"], tags_match="all_strict")
         keys = dict.fromkeys(item.document_id for item in response.results
-                             if item.document_id and item.document_id.startswith("aii-"))
+                             if item.document_id and item.document_id.startswith("aii-")
+                             and not item.document_id.startswith("aii-failed-"))
         # Hindsight selects the candidates; the existing transparent score is used
         # only to rerank those documents, keeping investigation thresholds stable.
         candidates = MockHindsightClient()
@@ -164,3 +170,45 @@ class HindsightMemoryClient:
 
     def retrieve_successful_actions(self, incident_id: str) -> list[Outcome]:
         return self._outcomes(incident_id, "SUCCESS")
+
+    def store_failed_remediation_chunks(self, chunks: list[FailedRemediationChunk]) -> None:
+        for item in chunks:
+            chunk = FailedRemediationChunk.model_validate(item.model_dump())
+            response = self.transport.call(
+                "retain", bank_id=self.bank_id,
+                document_id=failed_chunk_document_id(chunk.chunk_id),
+                content=chunk.model_dump_json(), retain_async=False,
+                context=("Failed or partial remediation evidence. Preserve the action, observed result, "
+                         "incident context, and lesson for future incident response."),
+                metadata={"incident_id": chunk.incident_id, "outcome_id": chunk.outcome_id,
+                          "chunk_id": chunk.chunk_id, "source_filename": chunk.source_filename,
+                          "schema": "aii-failed-v1"},
+                tags=["aii-v1", "failed-remediation"],
+            )
+            if not response.success or response.var_async:
+                raise HindsightUnavailable("Hindsight did not confirm failed-remediation retention")
+
+    def retrieve_failed_remediation_chunks(self, query: str, limit: int = 10) -> list[FailedRemediationChunk]:
+        if not query.strip():
+            raise ValueError("query must not be empty")
+        if isinstance(limit, bool) or not isinstance(limit, int) or limit < 1 or limit > 100:
+            raise ValueError("limit must be an integer from 1 to 100")
+        response = self.transport.call("recall", bank_id=self.bank_id, query=query,
+                                       types=["world", "experience"], budget="mid", max_tokens=4096,
+                                       tags=["aii-v1", "failed-remediation"], tags_match="all_strict")
+        matches = []
+        for key in dict.fromkeys(item.document_id for item in response.results
+                                 if item.document_id and item.document_id.startswith("aii-failed-")):
+            content = self.transport.call("get_document", bank_id=self.bank_id, document_id=key)
+            if content is None:
+                raise ValueError("Hindsight recalled a failed-remediation chunk whose source is missing")
+            try:
+                chunk = FailedRemediationChunk.model_validate_json(content)
+            except (ValueError, TypeError):
+                raise ValueError("Hindsight source document is not a valid failed-remediation chunk") from None
+            if failed_chunk_document_id(chunk.chunk_id) != key:
+                raise ValueError("Hindsight failed-remediation document ID does not match its chunk")
+            matches.append(chunk)
+            if len(matches) == limit:
+                break
+        return matches

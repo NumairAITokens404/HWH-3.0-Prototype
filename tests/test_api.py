@@ -8,6 +8,7 @@ from fastapi.testclient import TestClient
 from api.app import create_app
 from api.runtime import ApiRuntime
 from config import Settings
+from memory.memory_writer import load_datasets
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -26,13 +27,45 @@ class ApiTests(unittest.TestCase):
         self.assertTrue(health.json()["simulated_actions"])
         capabilities = self.client.get("/api/capabilities").json()
         self.assertFalse(capabilities["persistent_memory"])
-        self.assertFalse(capabilities["file_ingestion"])
+        self.assertTrue(capabilities["file_ingestion"])
+        self.assertEqual(capabilities["embedding_provider"], "none")
         paths = self.client.get("/openapi.json").json()["paths"]
         self.assertIn("/api/incidents/investigate", paths)
         cors = self.client.options("/api/health", headers={"Origin": "http://localhost:5173",
                                                            "Access-Control-Request-Method": "GET"})
         self.assertEqual(cors.status_code, 200)
         self.assertEqual(cors.headers["access-control-allow-origin"], "http://localhost:5173")
+
+    def test_upload_and_search_failed_remediation_memory(self):
+        _, history, _ = load_datasets(ROOT / "data")
+        record = history[0].model_copy(deep=True)
+        record.incident.incident_id = "UPLOADED-001"
+        for outcome in record.outcomes:
+            outcome.incident_id = "UPLOADED-001"
+            outcome.outcome_id = "UPLOADED-" + outcome.outcome_id
+        response = self.client.post("/api/memory/uploads",
+                                    files={"file": ("history.json", record.model_dump_json(), "application/json")})
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.json()["failed_remediation_chunk_count"], 1)
+        search = self.client.get("/api/memory/failed-remediations",
+                                 params={"q": "retry underlying cause"})
+        self.assertEqual(search.status_code, 200)
+        self.assertEqual(search.json()["matches"][0]["incident_id"], "UPLOADED-001")
+
+    def test_upload_rejects_bad_type_payload_size_and_conflict(self):
+        self.assertEqual(self.client.post("/api/memory/uploads",
+                                         files={"file": ("history.txt", "{}", "text/plain")}).status_code, 415)
+        self.assertEqual(self.client.post("/api/memory/uploads",
+                                         files={"file": ("history.json", "bad", "application/json")}).status_code, 422)
+        small_settings = Settings(data_dir=ROOT / "data", api_upload_max_bytes=1024)
+        small = TestClient(create_app(small_settings, ApiRuntime(small_settings)))
+        self.assertEqual(small.post("/api/memory/uploads",
+                                   files={"file": ("large.json", b"x" * 1025, "application/json")}).status_code, 413)
+        _, history, _ = load_datasets(ROOT / "data")
+        changed = history[0].model_copy(update={"root_cause": "conflicting cause"})
+        conflict = self.client.post("/api/memory/uploads",
+                                    files={"file": ("history.json", changed.model_dump_json(), "application/json")})
+        self.assertEqual(conflict.status_code, 409)
 
     def test_investigation_is_read_only_and_structured(self):
         incident = self.runtime.cases[0].incident.model_copy(update={"incident_id": "API-INVESTIGATE"})

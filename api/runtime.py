@@ -10,9 +10,11 @@ from llm.client import create_llm
 from memory.factory import create_memory_client
 from memory.memory_writer import load_datasets, seed_memory
 from schemas.incident import Incident
+from schemas.ingestion import FailedRemediationSearchResult, IngestionResult
 from schemas.investigation import InvestigationResult
 from schemas.workflow import Approval, SimulationScenario, WorkflowResult
 from services.incident_service import IncidentWorkflow, investigate_incident
+from services.ingestion_service import ingest_incident_history
 from tools.simulation import SimulationWorld
 
 
@@ -53,6 +55,15 @@ class ApiRuntime:
     def investigate(self, incident: Incident) -> InvestigationResult:
         with self._lock:
             return investigate_incident(incident, self.memory, self.llm)
+
+    def ingest(self, content: bytes, filename: str) -> IngestionResult:
+        with self._lock:
+            return ingest_incident_history(content, filename, self.memory, self.settings.memory_backend)
+
+    def search_failed_remediations(self, query: str, limit: int) -> FailedRemediationSearchResult:
+        with self._lock:
+            matches = self.memory.retrieve_failed_remediation_chunks(query, limit)
+        return FailedRemediationSearchResult(query=query, matches=matches)
 
     def _scenario(self, name: DemoScenarioName) -> SimulationScenario:
         suffix = uuid4().hex[:12]

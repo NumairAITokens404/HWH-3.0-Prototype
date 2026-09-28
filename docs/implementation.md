@@ -38,11 +38,13 @@
 | `tests/test_workflow.py` | Approval, execution, verification, and memory feedback: 16 tests. |
 | `llm/client.py`, `llm/prompts.py` | Bounded Ollama structured output and the evidence-only prompt. |
 | `schemas/llm.py` | Strict model proposal contract, separate from authorization. |
+| `schemas/ingestion.py`, `services/ingestion_service.py` | Upload result, failed-remediation chunks, validation, chunking, and storage orchestration. |
 | `evaluation/evaluate_memory.py`, `evaluation/metrics.py` | Isolated with/without-memory comparison, safety challenges, and metrics. |
 | `config.py`, `.env.example` | Automatic `.env` loading and validated memory/model configuration. |
 | `cli.py`, `main.py` | Demo, investigate, scenario run, JSON output, and interactive approval. |
 | `api/app.py`, `api/models.py`, `api/runtime.py` | FastAPI contract, provider capability reporting, named demo scenarios, and bounded pending approvals. |
 | `tests/test_api.py` | HTTP validation, OpenAPI, CORS-facing contracts, approval lifecycle, and capacity behavior. |
+| `tests/test_ingestion.py` | Upload validation, conflict preflight, bounded chunks, idempotence, search, and SQLite persistence. |
 | `requirements.txt`, `.gitignore`, `__init__.py` files | Dependencies, ignored artifacts, and package structure. |
 | `README.md`, `docs/` | Project overview and phase/technical documentation. |
 
