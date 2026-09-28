@@ -17,6 +17,7 @@ class Settings:
     hindsight_api_key: str | None = field(default=None, repr=False)
     hindsight_timeout: float = 120.0
     sqlite_path: Path = field(default_factory=lambda: Path(__file__).resolve().parent / ".runtime" / "incidents.sqlite3")
+    workflow_db_path: Path | None = None
     llm_provider: str = "none"
     llm_base_url: str = "http://127.0.0.1:11434"
     llm_model: str = "qwen3.5:9b"
@@ -72,6 +73,7 @@ class Settings:
                    hindsight_api_key=value("HINDSIGHT_API_KEY", "") or None,
                    hindsight_timeout=float(value("HINDSIGHT_TIMEOUT", "120")),
                    sqlite_path=path("SQLITE_PATH", root / ".runtime" / "incidents.sqlite3"),
+                   workflow_db_path=path("WORKFLOW_DB_PATH", root / ".runtime" / "workflows.sqlite3"),
                    llm_provider=value("LLM_PROVIDER", "none"),
                    llm_base_url=value("LLM_BASE_URL", "http://127.0.0.1:11434").rstrip("/"),
                    llm_model=value("LLM_MODEL", "qwen3.5:9b"),

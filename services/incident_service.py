@@ -36,6 +36,15 @@ class IncidentWorkflow:
         self._completed: dict[str, tuple[WorkflowResult, IncidentMemory]] = {}
         self._terminal: dict[str, WorkflowResult] = {}
 
+    def restore_pending(self, incident: Incident, investigation: InvestigationResult) -> None:
+        """Restore a pre-execution checkpoint without asking the model again."""
+        self.world.validate_incident(incident)
+        if investigation.incident_id != incident.incident_id:
+            raise ValueError("Pending investigation does not match the incident")
+        if incident.incident_id in self._completed or incident.incident_id in self._terminal:
+            raise ValueError("Cannot restore a terminal workflow")
+        self._pending[incident.incident_id] = investigation.model_copy(deep=True)
+
     def run(self, incident: Incident, approval: Approval | None = None) -> WorkflowResult:
         self.world.validate_incident(incident)
         key = incident.incident_id

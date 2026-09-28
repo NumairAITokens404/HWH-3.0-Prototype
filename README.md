@@ -53,6 +53,7 @@ The LLM proposes and explains. Python owns citation checks, action support, risk
 - **Persistent memory without Docker:** SQLite stores incidents and outcomes across runs.
 - **Hindsight-ready:** the official SDK adapter, backend selection, and offline contract tests are implemented. A live Hindsight service remains optional.
 - **History ingestion:** JSON incident-history uploads preserve complete records and create searchable failed-remediation chunks; Hindsight handles embeddings when configured.
+- **Durable control plane:** pending approvals and audit events persist in SQLite, including a pre-execution checkpoint that prevents automatic duplicate actions after an interrupted run.
 - **Complete simulated loop:** investigation, policy checks, human approval pause/resume, remediation, retry, independent verification, and memory feedback.
 - **Structured and guarded:** Pydantic validates every input and model proposal; malformed, truncated, unsupported, or uncited output is rejected or disclosed as fallback.
 - **Synthetic benchmark:** 18 historical incidents, 54 ordered outcomes, and 6 held-out cases across six failure families.
@@ -135,6 +136,7 @@ All actions, service checks, incidents, and outcomes in this repository are simu
 - [Measured evaluation](docs/phase-6-evaluation.md)
 - [HTTP API for the web platform](docs/api.md)
 - [File ingestion and failed-remediation memory](docs/phase-7-ingestion.md)
+- [Workflow persistence and Docker storage](docs/phase-8-workflow-persistence.md)
 - [Implementation reference](docs/implementation.md)
 - [Optional Hindsight setup](docs/hindsight-setup.md)
 - [Build phases](docs/README.md)

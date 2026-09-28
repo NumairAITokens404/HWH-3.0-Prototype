@@ -30,9 +30,10 @@ The API generates demo incident IDs. The browser never submits `required_action`
 ## Approval lifecycle
 
 - A mismatched request ID returns `BLOCKED`; the correct request may still be submitted.
-- A bound rejection returns `DENIED` and permanently closes that in-process run.
-- A successful or denied run is removed from the API's pending-run registry.
-- Pending state is in-process and is lost on API restart.
+- A bound rejection returns `DENIED` and permanently closes the run.
+- A successful or denied run is removed from the active registry while its checkpoint and audit history remain durable.
+- Pending approvals survive API restarts through `WORKFLOW_DB_PATH`; the original investigation is restored without another model call.
+- An approved action is checkpointed as `EXECUTING` before it runs. Ambiguous interrupted executions require reconciliation and are never automatically repeated.
 - Reviewer names are trusted demo inputs, not authenticated identities.
 
 ## UI integration

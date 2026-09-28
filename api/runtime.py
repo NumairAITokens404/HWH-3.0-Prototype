@@ -15,6 +15,7 @@ from schemas.investigation import InvestigationResult
 from schemas.workflow import Approval, SimulationScenario, WorkflowResult
 from services.incident_service import IncidentWorkflow, investigate_incident
 from services.ingestion_service import ingest_incident_history
+from services.workflow_store import WorkflowStore
 from tools.simulation import SimulationWorld
 
 
@@ -33,7 +34,7 @@ SCENARIOS = (
 
 @dataclass
 class _Run:
-    incident: Incident
+    scenario: SimulationScenario
     workflow: IncidentWorkflow
 
 
@@ -51,6 +52,58 @@ class ApiRuntime:
         self.max_active_runs = max_active_runs
         self._runs: dict[str, _Run] = {}
         self._lock = RLock()
+        self.workflow_store = WorkflowStore(settings.workflow_db_path)
+        self._restore_pending_runs()
+
+    def _restore_pending_runs(self) -> None:
+        records = self.workflow_store.pending_runs(self.max_active_runs + 1)
+        if len(records) > self.max_active_runs:
+            raise RuntimeError("Persisted workflow capacity exceeds max_active_runs")
+        for record in records:
+            scenario = record.scenario
+            workflow = IncidentWorkflow(self.memory, SimulationWorld([scenario]), self.llm)
+            workflow.restore_pending(scenario.incident, record.result.investigation)
+            self._runs[record.incident_id] = _Run(scenario=scenario, workflow=workflow)
+
+    def _audit_start(self, scenario: SimulationScenario, result: WorkflowResult) -> None:
+        incident_id = result.incident_id
+        self.workflow_store.append_event(incident_id, "INCIDENT_RECEIVED", {
+            "service": scenario.incident.service, "severity": scenario.incident.severity,
+        })
+        self.workflow_store.append_event(incident_id, "INVESTIGATION_COMPLETED", {
+            "method": result.investigation.method,
+            "confidence": (result.investigation.recommended_action.confidence
+                           if result.investigation.recommended_action is not None else None),
+        })
+        if result.investigation.recommended_action is not None:
+            self.workflow_store.append_event(incident_id, "ACTION_RECOMMENDED", {
+                "action": result.investigation.recommended_action.action_name,
+            })
+        if result.status == "HUMAN_APPROVAL_REQUIRED":
+            self.workflow_store.append_event(incident_id, "APPROVAL_REQUESTED", {
+                "request_id": result.decision.request_id, "risk_level": result.decision.risk_level,
+            })
+        else:
+            self._audit_execution(result)
+
+    def _audit_execution(self, result: WorkflowResult) -> None:
+        incident_id = result.incident_id
+        if result.remediation is not None:
+            self.workflow_store.append_event(incident_id, "REMEDIATION_EXECUTED", {
+                "action": result.remediation.action, "result": result.remediation.result,
+            })
+        if result.reprocessing is not None:
+            self.workflow_store.append_event(incident_id, "REPROCESSING_EXECUTED", {
+                "action": result.reprocessing.action, "result": result.reprocessing.result,
+            })
+        if result.verification is not None:
+            self.workflow_store.append_event(incident_id, "OUTCOME_VERIFIED", {
+                "result": result.verification.result,
+                "service_healthy": result.verification.service_healthy,
+                "operation_recovered": result.verification.operation_recovered,
+            })
+        if result.memory_stored:
+            self.workflow_store.append_event(incident_id, "MEMORY_UPDATED", {})
 
     def investigate(self, incident: Incident) -> InvestigationResult:
         with self._lock:
@@ -85,10 +138,19 @@ class ApiRuntime:
                 raise RuntimeError("Demo workflow capacity reached; restart the API to clear local state")
             scenario = self._scenario(name)
             workflow = IncidentWorkflow(self.memory, SimulationWorld([scenario]), self.llm)
-            run = _Run(incident=scenario.incident, workflow=workflow)
-            result = workflow.run(run.incident)
+            run = _Run(scenario=scenario, workflow=workflow)
+            result = workflow.run(scenario.incident)
             if result.status == "HUMAN_APPROVAL_REQUIRED":
                 self._runs[scenario.incident.incident_id] = run
+                state = "PENDING_APPROVAL"
+            elif result.status == "DENIED":
+                state = "DENIED"
+            elif result.status in {"SUCCESS", "FAILED", "PARTIAL"}:
+                state = "COMPLETED"
+            else:
+                state = "TERMINAL"
+            self.workflow_store.save_run(scenario, result, state)
+            self._audit_start(scenario, result)
             return result
 
     def submit_approval(self, incident_id: str, submission: ApprovalSubmission) -> WorkflowResult:
@@ -98,7 +160,29 @@ class ApiRuntime:
                 raise KeyError("Unknown or expired demo workflow")
             approval = Approval(request_id=submission.request_id, approved=submission.approved,
                                 reviewer=submission.reviewer)
-            result = run.workflow.run(run.incident, approval)
+            self.workflow_store.append_event(incident_id, "APPROVAL_SUBMITTED", {
+                "request_id": submission.request_id, "approved": submission.approved,
+                "reviewer": submission.reviewer,
+            })
+            persisted = self.workflow_store.get_run(incident_id)
+            expected = persisted.result.decision.request_id if persisted and persisted.result.decision else None
+            if submission.approved and submission.request_id == expected:
+                self.workflow_store.save_run(run.scenario, persisted.result, "EXECUTING")
+            result = run.workflow.run(run.scenario.incident, approval)
+            if result.status == "BLOCKED":
+                self.workflow_store.append_event(incident_id, "APPROVAL_BLOCKED", {
+                    "reason": result.decision.reason,
+                })
+                self.workflow_store.save_run(run.scenario, result, "PENDING_APPROVAL")
+                return result
+            if result.status == "DENIED":
+                state = "DENIED"
+                self.workflow_store.append_event(incident_id, "DENIED", {"reviewer": submission.reviewer})
+            else:
+                state = "COMPLETED" if result.status in {"SUCCESS", "FAILED", "PARTIAL"} else "TERMINAL"
+                self.workflow_store.append_event(incident_id, "APPROVED", {"reviewer": submission.reviewer})
+                self._audit_execution(result)
+            self.workflow_store.save_run(run.scenario, result, state)
             if result.status != "BLOCKED":
                 self._runs.pop(incident_id, None)
             return result
