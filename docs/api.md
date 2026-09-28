@@ -4,6 +4,8 @@
 
 The FastAPI layer exposes the existing investigation and simulated workflow services without moving policy into the browser. OpenAPI is the source of truth for generated frontend types.
 
+The React frontend selects the live adapter when `frontend/.env` contains `VITE_API_MODE=http`. Its dashboard routes use the `/api/ui/*` facade below; core automation remains in the same runtime and policy services used by the CLI and typed API.
+
 ## Start locally
 
 ```powershell
@@ -26,6 +28,13 @@ Open `http://127.0.0.1:8000/docs` for the interactive API schema. Configure allo
 | `POST /api/incidents/investigate` | Return a read-only recommendation for an `Incident`. |
 | `POST /api/demo/workflows` | Start a named simulated workflow. |
 | `POST /api/demo/workflows/{incident_id}/approval` | Resume a pending workflow with a bound reviewer decision. |
+| `GET /api/ui/overview` | Supply live dashboard counters and recent incidents. |
+| `GET /api/ui/incidents` | List the held-out demonstration incidents and their workflow states. |
+| `GET /api/ui/incidents/{incident_id}` | Return live investigation and workflow state for one incident. |
+| `POST /api/ui/incidents/{incident_id}/workflow` | Run or resume the server-owned demonstration case. |
+| `POST /api/ui/incidents/{incident_id}/approval` | Submit the bound UI approval decision. |
+| `GET /api/ui/memory` | Search complete memory records for the memory explorer. |
+| `GET /api/ui/evaluation` | Run and return the deterministic checkpoint comparison. |
 
 The API generates demo incident IDs. The browser never submits `required_action`, health truth, or expected evaluation labels. Low-risk scenarios finish immediately. High-risk scenarios return `HUMAN_APPROVAL_REQUIRED` and a `decision.request_id` that must be returned with the reviewer decision.
 

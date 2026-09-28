@@ -15,6 +15,8 @@ from schemas.investigation import InvestigationResult
 from schemas.workflow import WorkflowResult
 from services.ingestion_service import IngestionValidationError, SUPPORTED_EXTENSIONS
 from services.approval_auth import ApprovalAuthenticationError, ApprovalAuthenticator
+from evaluation.evaluate_memory import evaluate
+from dataclasses import replace
 
 
 def create_app(settings: Settings | None = None, runtime: ApiRuntime | None = None) -> FastAPI:
@@ -107,5 +109,85 @@ def create_app(settings: Settings | None = None, runtime: ApiRuntime | None = No
             raise HTTPException(status_code=401, detail=str(exc), headers={"WWW-Authenticate": "Bearer"}) from exc
         except (ValueError, KeyError, RuntimeError, HindsightUnavailable) as exc:
             domain_error(exc)
+
+    @app.get("/api/ui/incidents", tags=["ui"])
+    def ui_incidents():
+        items = []
+        for case in runtime.cases:
+            stored = runtime.case_result(case.incident.incident_id)
+            status = (stored.status if stored else "INVESTIGATING")
+            status = {"SUCCESS": "RESOLVED", "HUMAN_APPROVAL_REQUIRED": "APPROVAL_REQUIRED",
+                      "DENIED": "INSUFFICIENT_EVIDENCE", "BLOCKED": "APPROVAL_REQUIRED",
+                      "FAILED": "PARTIAL"}.get(status, status)
+            items.append(case.incident.model_dump() | {"status": status,
+                         "occurred_at": "2026-09-28T00:00:00+00:00"})
+        return items
+
+    @app.get("/api/ui/incidents/{incident_id}", tags=["ui"])
+    def ui_incident(incident_id: str):
+        try:
+            case = runtime.case(incident_id)
+            stored = runtime.case_result(incident_id)
+            investigation = stored.investigation if stored else runtime.investigate(case.incident)
+            return {"incident": case.incident, "investigation": investigation, "workflow": stored}
+        except (ValueError, KeyError, RuntimeError, HindsightUnavailable) as exc:
+            domain_error(exc)
+
+    @app.post("/api/ui/incidents/{incident_id}/workflow", response_model=WorkflowResult, tags=["ui"])
+    def ui_workflow(incident_id: str):
+        try:
+            return runtime.start_case(incident_id)
+        except (ValueError, KeyError, RuntimeError, HindsightUnavailable) as exc:
+            domain_error(exc)
+
+    @app.post("/api/ui/incidents/{incident_id}/approval", response_model=WorkflowResult, tags=["ui"])
+    def ui_approval(incident_id: str, submission: ApprovalSubmission,
+                    authorization: str | None = Header(default=None)):
+        try:
+            reviewer = approval_auth.authenticate(authorization, submission.reviewer)
+            return runtime.submit_approval(incident_id, submission, reviewer=reviewer)
+        except ApprovalAuthenticationError as exc:
+            raise HTTPException(status_code=401, detail=str(exc), headers={"WWW-Authenticate": "Bearer"}) from exc
+        except (ValueError, KeyError, RuntimeError, HindsightUnavailable) as exc:
+            domain_error(exc)
+
+    @app.get("/api/ui/memory", tags=["ui"])
+    def ui_memory(q: str = "", result: str = "", service: str = ""):
+        records = runtime.memory_records()
+        query = q.casefold().strip()
+        return [record for record in records
+                if (not query or query in record.model_dump_json().casefold())
+                and (not result or any(outcome.result == result for outcome in record.outcomes))
+                and (not service or record.incident.service == service)]
+
+    @app.get("/api/ui/overview", tags=["ui"])
+    def ui_overview():
+        incidents = ui_incidents()
+        return {"active": sum(item["status"] not in {"RESOLVED", "PARTIAL"} for item in incidents),
+                "resolved": sum(item["status"] == "RESOLVED" for item in incidents),
+                "pendingApprovals": sum(item["status"] == "APPROVAL_REQUIRED" for item in incidents),
+                "memoryRecords": len(runtime.memory_records()),
+                "failedFixesAvoided": sum(len(record.outcomes) > 0 for record in runtime.memory_records()),
+                "recent": incidents[:5]}
+
+    @app.get("/api/ui/evaluation", tags=["ui"])
+    def ui_evaluation():
+        report = evaluate(replace(settings, llm_provider="none"))
+        before = report["variants"]["without_memory"]["metrics"]
+        after = report["variants"]["with_memory"]["metrics"]
+        total = after["cases"]
+        def fraction(value):
+            return f"{round(value * total)} / {total}"
+        return {"metrics": [
+            {"name": "Raw action accuracy", "withoutMemory": fraction(before["raw_action_accuracy"]),
+             "withMemory": fraction(after["raw_action_accuracy"]), "improved": after["raw_action_accuracy"] > before["raw_action_accuracy"]},
+            {"name": "Accepted action accuracy", "withoutMemory": fraction(before["accepted_action_accuracy"]),
+             "withMemory": fraction(after["accepted_action_accuracy"]), "improved": after["accepted_action_accuracy"] > before["accepted_action_accuracy"]},
+            {"name": "Accepted coverage", "withoutMemory": f"{before['accepted_coverage']:.0%}",
+             "withMemory": f"{after['accepted_coverage']:.0%}", "improved": after["accepted_coverage"] > before["accepted_coverage"]},
+        ], "challenges": [{"name": item["name"].replace("_", " ").title(),
+                             "status": "PASSED" if item["passed"] else "FAILED",
+                             "detail": f"Returned {item['actual'].lower().replace('_', ' ')}."}
+                            for item in report["challenges"]]}
 
     return app

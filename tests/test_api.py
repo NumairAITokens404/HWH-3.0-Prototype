@@ -161,6 +161,37 @@ class ApiTests(unittest.TestCase):
         response = client.post("/api/demo/workflows", json={"scenario": "high-risk-approval"})
         self.assertEqual(response.status_code, 503)
 
+    def test_ui_contract_supports_live_frontend_workflow(self):
+        incidents = self.client.get("/api/ui/incidents")
+        self.assertEqual(incidents.status_code, 200)
+        self.assertEqual(len(incidents.json()), 6)
+        detail = self.client.get("/api/ui/incidents/TEST-001")
+        self.assertEqual(detail.status_code, 200)
+        self.assertEqual(detail.json()["investigation"]["status"], "RECOMMENDATION_READY")
+        completed = self.client.post("/api/ui/incidents/TEST-001/workflow")
+        self.assertEqual(completed.status_code, 200)
+        self.assertEqual(completed.json()["status"], "SUCCESS")
+        overview = self.client.get("/api/ui/overview").json()
+        self.assertEqual(overview["resolved"], 1)
+        self.assertEqual(overview["memoryRecords"], 19)
+
+    def test_ui_high_risk_workflow_resumes_with_approval(self):
+        pending = self.client.post("/api/ui/incidents/TEST-003/workflow").json()
+        self.assertEqual(pending["status"], "HUMAN_APPROVAL_REQUIRED")
+        approved = self.client.post("/api/ui/incidents/TEST-003/approval", json={
+            "request_id": pending["decision"]["request_id"], "approved": True, "reviewer": "operator",
+        })
+        self.assertEqual(approved.status_code, 200)
+        self.assertEqual(approved.json()["status"], "SUCCESS")
+
+    def test_ui_memory_and_evaluation_are_live(self):
+        memory = self.client.get("/api/ui/memory", params={"service": "queue-service", "result": "FAILED"})
+        self.assertEqual(memory.status_code, 200)
+        self.assertEqual(len(memory.json()), 3)
+        evaluation = self.client.get("/api/ui/evaluation")
+        self.assertEqual(evaluation.status_code, 200)
+        self.assertTrue(evaluation.json()["metrics"])
+
 
 if __name__ == "__main__":
     unittest.main()

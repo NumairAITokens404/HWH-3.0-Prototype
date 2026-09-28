@@ -47,6 +47,8 @@ class ApiRuntime:
             raise ValueError("max_active_runs must be positive")
         self.settings = settings
         _, history, self.cases = load_datasets(settings.data_dir)
+        self.history = history
+        self._memory_ids = {record.incident.incident_id for record in history}
         self.memory = create_memory_client(settings)
         seed_memory(self.memory, history)
         self.llm = create_llm(settings)
@@ -120,7 +122,53 @@ class ApiRuntime:
 
     def ingest(self, content: bytes, filename: str) -> IngestionResult:
         with self._lock:
-            return ingest_incident_history(content, filename, self.memory, self.settings.memory_backend)
+            result = ingest_incident_history(content, filename, self.memory, self.settings.memory_backend)
+            self._memory_ids.update(result.incident_ids)
+            return result
+
+    def memory_records(self):
+        with self._lock:
+            return [record for incident_id in sorted(self._memory_ids)
+                    if (record := self.memory.get_incident_memory(incident_id)) is not None]
+
+    def case(self, incident_id: str):
+        case = next((item for item in self.cases if item.incident.incident_id == incident_id), None)
+        if case is None:
+            raise KeyError("Unknown incident")
+        return case
+
+    def case_result(self, incident_id: str) -> WorkflowResult | None:
+        record = self.workflow_store.get_run(incident_id)
+        return record.result if record else None
+
+    def start_case(self, incident_id: str) -> WorkflowResult:
+        with self._lock:
+            existing = self.workflow_store.get_run(incident_id)
+            if existing is not None:
+                return existing.result
+            if len(self._runs) >= self.max_active_runs:
+                raise RuntimeError("Demo workflow capacity reached; restart the API to clear local state")
+            case = self.case(incident_id)
+            incident = case.incident
+            operation_id = (incident.transaction_id or incident.job_id or incident.customer_id
+                            or "UI-OP-" + incident.incident_id)
+            scenario = SimulationScenario(incident=incident, operation_id=operation_id,
+                                          required_action=case.expected_action)
+            workflow = IncidentWorkflow(self.memory, self._execution_backend(scenario), self.llm)
+            run = _Run(scenario=scenario, workflow=workflow)
+            result = workflow.run(incident)
+            if result.status == "HUMAN_APPROVAL_REQUIRED":
+                self._runs[incident_id] = run
+                state = "PENDING_APPROVAL"
+            elif result.status in {"SUCCESS", "FAILED", "PARTIAL"}:
+                state = "COMPLETED"
+            else:
+                state = "TERMINAL"
+            self.workflow_store.save_run(scenario, result, state)
+            self._audit_start(scenario, result)
+            if result.memory_stored:
+                self._memory_ids.add(incident_id)
+            return result
 
     def search_failed_remediations(self, query: str, limit: int) -> FailedRemediationSearchResult:
         with self._lock:
@@ -196,6 +244,8 @@ class ApiRuntime:
                 self.workflow_store.append_event(incident_id, "APPROVED", {"reviewer": reviewer})
                 self._audit_execution(result)
             self.workflow_store.save_run(run.scenario, result, state)
+            if result.memory_stored:
+                self._memory_ids.add(incident_id)
             if result.status != "BLOCKED":
                 self._runs.pop(incident_id, None)
             return result

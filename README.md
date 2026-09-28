@@ -127,6 +127,12 @@ Useful commands:
 # Start the API for the web platform
 .venv\Scripts\python.exe -m uvicorn api.app:create_app --factory --reload --port 8000
 
+# In a second terminal, start the live frontend
+Copy-Item frontend\.env.example frontend\.env
+Set-Location frontend
+npm install
+npm run dev
+
 # Upload existing incident history after starting the API
 curl.exe -X POST http://127.0.0.1:8000/api/memory/uploads -F "file=@data/remediation_history.json;type=application/json"
 ```
