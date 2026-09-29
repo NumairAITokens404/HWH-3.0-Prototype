@@ -211,6 +211,64 @@ docker compose up --build
 
 Docker is optional for local development. The compose configuration preserves runtime databases through mounted storage and is ready for the same environment variables.
 
+## Deploy
+
+The lowest-friction hosted setup is:
+
+- **Render** for the FastAPI backend, using the repository `Dockerfile` and `render.yaml`.
+- **Vercel** for the Vite frontend, using the root `vercel.json`.
+
+This mirrors the local two-process setup without rewriting the API for serverless hosting.
+
+### 1. Deploy the API on Render
+
+1. Push this repository to GitHub.
+2. In Render, create a new **Blueprint** from the repo. Render will read `render.yaml`.
+3. Set `API_CORS_ORIGINS` to your frontend URL after Vercel creates it, for example:
+
+```dotenv
+API_CORS_ORIGINS=https://your-vercel-app.vercel.app
+```
+
+The blueprint runs a Docker web service, mounts `/app/.runtime` as persistent storage, uses SQLite memory by default, and disables the local Ollama dependency with `LLM_PROVIDER=none`. That gives you a deployable demo that does not require a GPU or a separate model server.
+
+Optional production env vars:
+
+```dotenv
+MEMORY_BACKEND=hindsight
+HINDSIGHT_BASE_URL=https://your-hindsight-service.example
+HINDSIGHT_BANK_ID=adaptive-incident-intelligence
+HINDSIGHT_API_KEY=...
+APPROVAL_IDENTITIES_JSON={"Reviewer Name":"secret-token"}
+```
+
+### 2. Deploy the frontend on Vercel
+
+1. Import the same GitHub repo in Vercel.
+2. Keep the repo root as the project root. `vercel.json` handles `cd frontend`, install, build, and SPA routing.
+3. Set these Vercel environment variables:
+
+```dotenv
+VITE_API_MODE=http
+VITE_API_BASE_URL=https://your-render-api.onrender.com
+VITE_APPROVAL_TOKEN=
+```
+
+Keep `VITE_APPROVAL_TOKEN` empty on a public Vercel deployment. Vite embeds `VITE_` values in browser code, so this is not a safe place for an approval token. For a public deployment with authenticated approvals, add a server-side login or proxy before enabling `APPROVAL_IDENTITIES_JSON`.
+
+### 3. Connect CORS
+
+After Vercel gives you the production URL, update the Render service:
+
+```dotenv
+API_CORS_ORIGINS=https://your-vercel-app.vercel.app
+```
+
+Then redeploy or restart the Render service. Check:
+
+- `https://your-render-api.onrender.com/api/health`
+- `https://your-vercel-app.vercel.app`
+
 ## CLI and evaluation
 
 ```powershell

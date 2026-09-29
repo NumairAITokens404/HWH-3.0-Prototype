@@ -1,8 +1,11 @@
 .git
 .venv
-.env
-.runtime
 __pycache__
-*.pyc
+*.py[cod]
+.env
 .pytest_cache
-reports
+.runtime
+reports/local-*.json
+frontend/node_modules
+frontend/dist
+frontend/.env
