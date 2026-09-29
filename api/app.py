@@ -1,6 +1,6 @@
 """FastAPI application factory for UI and demo integrations."""
 
-from fastapi import FastAPI, File, Header, HTTPException, Query, UploadFile
+from fastapi import FastAPI, File, Header, HTTPException, Query, Response, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.concurrency import run_in_threadpool
 
@@ -46,8 +46,10 @@ def create_app(settings: Settings | None = None, runtime: ApiRuntime | None = No
 
     @app.get("/health", response_model=HealthResponse, tags=["system"])
     @app.get("/api/health", response_model=HealthResponse, tags=["system"])
-    def health():
+    def health(response: Response):
         memory_ready, detail = runtime.memory_status()
+        if not memory_ready:
+            response.status_code = 503
         return HealthResponse(status="ok" if memory_ready else "degraded",
                               memory_backend=settings.memory_backend, memory_ready=memory_ready, detail=detail,
                               llm_provider=settings.llm_provider,
@@ -57,7 +59,7 @@ def create_app(settings: Settings | None = None, runtime: ApiRuntime | None = No
 
     @app.get("/api/capabilities", response_model=CapabilityResponse, tags=["system"])
     def capabilities():
-        return CapabilityResponse(persistent_memory=settings.memory_backend in {"sqlite", "hindsight"},
+        return CapabilityResponse(persistent_memory=settings.memory_backend in {"sqlite", "postgres", "hindsight"},
                                   live_hindsight=settings.memory_backend == "hindsight",
                                   embedding_provider="hindsight" if settings.memory_backend == "hindsight" else "none",
                                   action_backend=settings.action_backend,

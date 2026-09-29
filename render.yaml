@@ -2,25 +2,17 @@ services:
   - type: web
     name: adaptive-incident-intelligence-api
     runtime: docker
-    plan: starter
+    plan: free
     healthCheckPath: /api/health
-    disk:
-      name: adaptive-runtime
-      mountPath: /app/.runtime
-      sizeGB: 1
     envVars:
       - key: INCIDENT_DATA_DIR
         value: /app/data
       - key: MEMORY_BACKEND
-        value: sqlite
-      - key: SQLITE_PATH
-        value: /app/.runtime/incidents.sqlite3
-      - key: WORKFLOW_DB_PATH
-        value: /app/.runtime/workflows.sqlite3
+        value: postgres
+      - key: DATABASE_URL
+        sync: false
       - key: ACTION_BACKEND
         value: simulation
-      - key: CONNECTOR_RECEIPT_DB_PATH
-        value: /app/.runtime/connector-receipts.sqlite3
       - key: LLM_PROVIDER
         value: none
       - key: API_CORS_ORIGINS

@@ -213,9 +213,10 @@ Docker is optional for local development. The compose configuration preserves ru
 
 ## Deploy
 
-The lowest-friction hosted setup is:
+The no-card hosted demo setup is:
 
-- **Render** for the FastAPI backend, using the repository `Dockerfile` and `render.yaml`.
+- **Render Free** for the FastAPI backend, using the repository `Dockerfile` and `render.yaml`.
+- **Neon Free** for Postgres persistence across Render restarts and deploys.
 - **Vercel** for the Vite frontend, using the root `vercel.json`.
 
 This mirrors the local two-process setup without rewriting the API for serverless hosting.
@@ -223,22 +224,20 @@ This mirrors the local two-process setup without rewriting the API for serverles
 ### 1. Deploy the API on Render
 
 1. Push this repository to GitHub.
-2. In Render, create a new **Blueprint** from the repo. Render will read `render.yaml`.
-3. Set `API_CORS_ORIGINS` to your frontend URL after Vercel creates it, for example:
+2. Create a Neon Free Postgres project and copy its pooled connection URL.
+3. In Render, create a new **Blueprint** from the repo. Render will read `render.yaml`.
+4. Set `DATABASE_URL` to the Neon connection URL and `APPROVAL_IDENTITIES_JSON` to `{}`.
+5. At initial Blueprint creation, set `API_CORS_ORIGINS` to `http://localhost:5173`. After Vercel creates the frontend, replace it with the exact Vercel production URL, for example:
 
 ```dotenv
 API_CORS_ORIGINS=https://your-vercel-app.vercel.app
 ```
 
-The blueprint runs a Docker web service, mounts `/app/.runtime` as persistent storage, uses SQLite memory by default, and disables the local Ollama dependency with `LLM_PROVIDER=none`. That gives you a deployable demo that does not require a GPU or a separate model server.
+The blueprint runs a free Docker web service and stores incident memory, workflow checkpoints, and dashboard state in Neon Postgres. Render Free sleeps when idle, so the first request after inactivity may take longer. `LLM_PROVIDER=none` avoids a separate model server. The free database has quotas; export backups for important data.
 
 Optional production env vars:
 
 ```dotenv
-MEMORY_BACKEND=hindsight
-HINDSIGHT_BASE_URL=https://your-hindsight-service.example
-HINDSIGHT_BANK_ID=adaptive-incident-intelligence
-HINDSIGHT_API_KEY=...
 APPROVAL_IDENTITIES_JSON={"Reviewer Name":"secret-token"}
 ```
 

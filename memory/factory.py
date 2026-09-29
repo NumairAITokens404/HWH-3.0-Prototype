@@ -24,10 +24,16 @@ def create_memory_client(settings: Settings, namespace: str | None = None) -> Hi
         elif settings.memory_backend == "sqlite":
             path = Path(settings.sqlite_path)
             settings = replace(settings, sqlite_path=path.with_name(f"{path.stem}-{namespace}{path.suffix}"))
+        elif settings.memory_backend == "postgres":
+            from memory.postgres_client import PostgresMemoryClient
+            return PostgresMemoryClient(settings.database_url, namespace)
     if settings.memory_backend == "mock":
         return MockHindsightClient()
     if settings.memory_backend == "sqlite":
         from memory.sqlite_client import SQLiteMemoryClient
         return SQLiteMemoryClient(settings.sqlite_path)
+    if settings.memory_backend == "postgres":
+        from memory.postgres_client import PostgresMemoryClient
+        return PostgresMemoryClient(settings.database_url, "primary")
     from memory.hindsight_adapter import HindsightMemoryClient
     return HindsightMemoryClient(settings)

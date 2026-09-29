@@ -5,3 +5,4 @@ uvicorn[standard]>=0.35,<1
 httpx2>=2.13,<3
 python-multipart>=0.0.20,<1
 pypdf>=6,<7
+psycopg[binary]>=3.2,<4

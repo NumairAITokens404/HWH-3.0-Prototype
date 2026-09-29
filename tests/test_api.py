@@ -67,6 +67,7 @@ class ApiTests(unittest.TestCase):
         runtime = ApiRuntime(settings)
         try:
             client = TestClient(create_app(settings, runtime))
+            self.assertEqual(client.get("/api/health").status_code, 503)
             overview = client.get("/api/ui/overview")
             self.assertEqual(overview.status_code, 200)
             self.assertEqual(overview.json()["learningScore"], 0)

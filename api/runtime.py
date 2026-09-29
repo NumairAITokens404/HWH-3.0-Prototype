@@ -72,8 +72,13 @@ class ApiRuntime:
         self.max_active_runs = max_active_runs
         self._runs: dict[str, _Run] = {}
         self._lock = RLock()
-        self.workflow_store = WorkflowStore(settings.workflow_db_path)
-        self._dashboard_key = f"{settings.memory_backend}:{settings.hindsight_base_url}:{settings.hindsight_bank_id}:{settings.sqlite_path}"
+        if settings.memory_backend == "postgres":
+            from services.postgres_workflow_store import PostgresWorkflowStore
+            self.workflow_store = PostgresWorkflowStore(settings.database_url)
+            self._dashboard_key = f"postgres:{settings.hindsight_bank_id}"
+        else:
+            self.workflow_store = WorkflowStore(settings.workflow_db_path)
+            self._dashboard_key = f"{settings.memory_backend}:{settings.hindsight_base_url}:{settings.hindsight_bank_id}:{settings.sqlite_path}"
         self._evaluation_running = False
         self._evaluation_error: str | None = None
         self._evaluation_revision = 0
@@ -232,12 +237,14 @@ class ApiRuntime:
             self._primary_memory_seeded = True
 
     def memory_status(self) -> tuple[bool, str | None]:
-        if self.settings.memory_backend != "hindsight":
+        if self.settings.memory_backend not in {"hindsight", "postgres"}:
             return True, None
         try:
             self.memory.check_connection()
             return True, None
         except Exception:
+            if self.settings.memory_backend == "postgres":
+                return False, "Postgres is configured but unreachable; verify DATABASE_URL"
             return False, "Hindsight is configured but unreachable; start it and verify HINDSIGHT_BASE_URL"
 
     def investigate_ui(self, incident: Incident) -> InvestigationResult:

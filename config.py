@@ -18,6 +18,7 @@ class Settings:
     hindsight_api_key: str | None = field(default=None, repr=False)
     hindsight_timeout: float = 120.0
     sqlite_path: Path = field(default_factory=lambda: Path(__file__).resolve().parent / ".runtime" / "incidents.sqlite3")
+    database_url: str | None = field(default=None, repr=False)
     workflow_db_path: Path | None = None
     action_backend: str = "simulation"
     connector_base_url: str = "http://127.0.0.1:9000"
@@ -35,8 +36,12 @@ class Settings:
     approval_credentials: tuple[tuple[str, str], ...] = field(default=(), repr=False)
 
     def __post_init__(self):
-        if self.memory_backend not in {"mock", "sqlite", "hindsight"}:
-            raise ValueError("MEMORY_BACKEND must be mock, sqlite, or hindsight")
+        if self.memory_backend not in {"mock", "sqlite", "postgres", "hindsight"}:
+            raise ValueError("MEMORY_BACKEND must be mock, sqlite, postgres, or hindsight")
+        if self.memory_backend == "postgres" and not self.database_url:
+            raise ValueError("DATABASE_URL is required when MEMORY_BACKEND=postgres")
+        if self.database_url and urlparse(self.database_url).scheme not in {"postgres", "postgresql"}:
+            raise ValueError("DATABASE_URL must be a PostgreSQL URL")
         if self.action_backend not in {"simulation", "connector"}:
             raise ValueError("ACTION_BACKEND must be simulation or connector")
         url = urlparse(self.hindsight_base_url)
@@ -100,6 +105,7 @@ class Settings:
                    hindsight_api_key=value("HINDSIGHT_API_KEY", "") or None,
                    hindsight_timeout=float(value("HINDSIGHT_TIMEOUT", "120")),
                    sqlite_path=path("SQLITE_PATH", root / ".runtime" / "incidents.sqlite3"),
+                   database_url=value("DATABASE_URL", "") or None,
                    workflow_db_path=path("WORKFLOW_DB_PATH", root / ".runtime" / "workflows.sqlite3"),
                    action_backend=value("ACTION_BACKEND", "simulation"),
                    connector_base_url=value("CONNECTOR_BASE_URL", "http://127.0.0.1:9000").rstrip("/"),
